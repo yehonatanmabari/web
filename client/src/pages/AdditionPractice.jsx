@@ -316,9 +316,7 @@ export default function PracticeAddition() {
       <goodFx.Fx good />
       <badFx.Fx good={false} />
 
-      <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-        API_BASE: <b>{API_BASE}</b>
-      </div>
+    
 
       <h2>תרגול חיבור</h2>
 
