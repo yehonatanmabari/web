@@ -1,3 +1,4 @@
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import catWelcomeGif from "./assets/CatWelcome.gif";
@@ -40,11 +41,12 @@ export default function CheckTest1() {
     setMsg("בודק...");
 
     try {
-      const res = await fetch("http://localhost:3000/check-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+    const res = await fetch(`${API_BASE}/check-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
 
       const data = await res.json().catch(() => ({}));
 
