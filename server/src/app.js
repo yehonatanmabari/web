@@ -37,19 +37,17 @@ function makeIncScoreRoute(field) {
   return async (req, res) => {
     try {
       const username = String(req.body?.username || "").trim();
-      if (!username) {
-        return res.status(400).json({ ok: false, error: "NO_USERNAME" });
-      }
+      if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
 
       const user = await User.findOneAndUpdate(
         { username },
         { $inc: { [field]: 1 } },
-        { new: true, projection: { password: 0 } }
-      );
+        { new: true }
+      ).select("-password");
 
       if (!user) return res.status(404).json({ ok: false, error: "NO_USER" });
 
-      return res.json({ ok: true, [field]: user[field] });
+      return res.json({ ok: true, [field]: user.get(field) }); // get בטוח יותר
     } catch (e) {
       console.log("ERR:", e);
       return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
