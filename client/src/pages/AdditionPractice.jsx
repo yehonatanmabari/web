@@ -1,8 +1,7 @@
-
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ ADD
 import useCatCongrats from "./useCatCongrats";
 import useCatUncongrats from "./useCatUncongrats";
-// src/pages/PracticeAddition.jsx
 
 /**
  * ✅ Works on Vercel + local:
@@ -11,9 +10,8 @@ import useCatUncongrats from "./useCatUncongrats";
  */
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
-//const API_BASE = (import.meta?.env?.VITE_API_BASE || "http://localhost:3000").replace(/\/$/, "");
-
 const ADD_STATE_KEY = "addition_practice_state_v1";
+const CAT_STORY_KEY = "cat_story_text"; // ✅ ADD
 
 /** ---------- Tiny helpers ---------- */
 async function apiFetch(path, options = {}) {
@@ -27,7 +25,6 @@ async function apiFetch(path, options = {}) {
     },
   });
 
-  // Try parse JSON, but don't crash if not JSON
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -98,8 +95,6 @@ function levelFromAdditionF(addition_f) {
 }
 
 async function fetchAdditionF(username) {
-  // Adjust here if your server uses POST instead of query param
-  // ✅ current assumption: GET /user/addition-f?username=...
   try {
     const data = await apiFetch(`/user/addition-f?username=${encodeURIComponent(username)}`);
     if (!data?.ok) return null;
@@ -110,10 +105,9 @@ async function fetchAdditionF(username) {
   }
 }
 
-
-
 /** ---------- Component ---------- */
 export default function PracticeAddition() {
+  const navigate = useNavigate(); // ✅ ADD
   const timerRef = useRef(null);
 
   const { triggerCatFx, CatCongrats } = useCatCongrats(900);
@@ -137,8 +131,9 @@ export default function PracticeAddition() {
     sessionStorage.removeItem(ADD_STATE_KEY);
   }
 
-  /** On mount: restore state */
+  /** On mount: restore state + restore story returned from CatStory */
   useEffect(() => {
+    // restore practice state
     const saved = sessionStorage.getItem(ADD_STATE_KEY);
     if (saved) {
       try {
@@ -153,6 +148,19 @@ export default function PracticeAddition() {
         // ignore
       }
     }
+
+    // ✅ story returned from /cat-story
+    const s = sessionStorage.getItem(CAT_STORY_KEY);
+    if (s) {
+      setStory(s);
+      sessionStorage.removeItem(CAT_STORY_KEY);
+
+      const m = "📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.";
+      setMsg(m);
+      setNoPointsThisQuestion(true);
+      savePracticeState({ story: s, msg: m, noPointsThisQuestion: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Auto-select level from DB ONLY if no saved state */
@@ -188,23 +196,18 @@ export default function PracticeAddition() {
     setQ(makeQuestion(nextLevel));
   }
 
-  /** Local story instead of navigating to /cat-story (so 1-file demo works) */
+  /** ✅ NAVIGATE to /cat-story so RAG runs there */
   function goStory() {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
 
-    const s =
-      `מתי החתול אומר 😺:\n` +
-      `בתרגיל הזה יש לנו ${q.a} ועוד ${q.b}.\n` +
-      `אפשר לפרק: ${q.a} + ${q.b} = ${q.ans}.\n` +
-      `יאללה תנסה לענות לבד!`;
-
     setNoPointsThisQuestion(true);
-    setStory(s);
-    setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
-    savePracticeState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
+    savePracticeState({ noPointsThisQuestion: true });
+
+    // CatStory expects: useLocation().state
+    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "+" } });
   }
 
   async function incAdditionScoreIfAllowed() {
@@ -213,13 +216,12 @@ export default function PracticeAddition() {
     if (!username) return;
 
     try {
-      // ✅ expected: POST /score/addition  body: { username }
       await apiFetch("/score/addition", {
         method: "POST",
         body: JSON.stringify({ username }),
       });
     } catch {
-      // ignore (no UI interruption)
+      // ignore
     }
   }
 
@@ -239,8 +241,6 @@ export default function PracticeAddition() {
       savePracticeState({ msg: m });
 
       triggerCatFx();
-
-
       incAdditionScoreIfAllowed();
 
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -249,9 +249,7 @@ export default function PracticeAddition() {
     }
 
     triggerBadCatFx();
-
-
-    const m = "❌ לא נכון"
+    const m = "❌ לא נכון";
     setMsg(m);
     savePracticeState({ msg: m });
   }
