@@ -1,5 +1,8 @@
-// src/pages/PracticeAddition.jsx
+
 import React, { useEffect, useRef, useState } from "react";
+import useCatCongrats from "./useCatCongrats";
+import useCatUncongrats from "./useCatUncongrats";
+// src/pages/PracticeAddition.jsx
 
 /**
  * ✅ Works on Vercel + local:
@@ -107,60 +110,14 @@ async function fetchAdditionF(username) {
   }
 }
 
-/** ---------- Minimal "cat effects" (no external hooks) ---------- */
-function useMiniFx(durationMs = 900) {
-  const tRef = useRef(null);
-  const [on, setOn] = useState(false);
 
-  function trigger() {
-    setOn(true);
-    if (tRef.current) clearTimeout(tRef.current);
-    tRef.current = setTimeout(() => setOn(false), durationMs);
-  }
-
-  const Fx = ({ good = true }) =>
-    on ? (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          pointerEvents: "none",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            border: "1px solid #e2e8f0",
-            borderRadius: 16,
-            padding: "10px 14px",
-            fontWeight: 900,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-            transform: "translateY(-10px)",
-          }}
-        >
-          {good ? "😺✨ כל הכבוד!" : "🙀 אופס! נסה שוב"}
-        </div>
-      </div>
-    ) : null;
-
-  useEffect(() => {
-    return () => {
-      if (tRef.current) clearTimeout(tRef.current);
-    };
-  }, []);
-
-  return { trigger, Fx };
-}
 
 /** ---------- Component ---------- */
 export default function PracticeAddition() {
   const timerRef = useRef(null);
 
-  const goodFx = useMiniFx(900);
-  const badFx = useMiniFx(900);
+  const { triggerCatFx, CatCongrats } = useCatCongrats(900);
+  const { triggerBadCatFx, CatUncongrats } = useCatUncongrats(900);
 
   const [level, setLevel] = useState("easy");
   const [q, setQ] = useState(() => makeQuestion("easy"));
@@ -281,7 +238,9 @@ export default function PracticeAddition() {
       setMsg(m);
       savePracticeState({ msg: m });
 
-      goodFx.trigger();
+      triggerCatFx();
+
+
       incAdditionScoreIfAllowed();
 
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -289,8 +248,10 @@ export default function PracticeAddition() {
       return;
     }
 
-    badFx.trigger();
-    const m = "❌ לא נכון";
+    triggerBadCatFx();
+
+
+    const m = "❌ לא נכון"
     setMsg(m);
     savePracticeState({ msg: m });
   }
@@ -313,10 +274,8 @@ export default function PracticeAddition() {
         position: "relative",
       }}
     >
-      <goodFx.Fx good />
-      <badFx.Fx good={false} />
-
-    
+      <CatCongrats />
+      <CatUncongrats />
 
       <h2>תרגול חיבור</h2>
 
