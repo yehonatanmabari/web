@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const { archiveAndResetScores } = require("./weeklyResetScores");
+const { connectDb } = require("./db");
 
 CMON = process.env.MONGO_URI || "NoMongo";
 const User = require("../models/User");
@@ -79,6 +80,7 @@ function makeGetFactorRoute(field) {
 // ------------------------- AUTH -------------------------
 
 app.post("/check-login", async (req, res) => {
+  await connectDb();
   try {
     const { username, password } = req.body || {};
 
