@@ -279,7 +279,7 @@ export default function PracticeDivision() {
       </div>
 
       <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
-        = {q.dividend} ÷ {q.divisor}
+        = {q.divisor} : {q.dividend} 
       </div>
 
       <input
