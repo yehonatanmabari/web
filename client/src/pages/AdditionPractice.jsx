@@ -301,7 +301,7 @@ export default function PracticeAddition() {
 
       {/* Correct display: a + b = ? */}
       <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
-      =-.,mnbvcxz{q.b} + {q.a} 
+        = {q.b} + {q.a}
       </div>
 
       <input

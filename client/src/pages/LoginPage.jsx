@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import catWelcomeGif from "../assets/CatWelcome.gif";
-import { registerUser } from "../services/authService";
+import { checkLogin } from "../services/authService";
 import { notifyAuthChanged } from "../features/auth/authStore";
 
-export default function Register() {
+export default function LoginPage() {
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [age, setAge] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
   const [showGif, setShowGif] = useState(false);
   const timerRef = useRef(null);
 
-  // ✅ If already logged in -> go to Start
+  // ✅ If already logged in -> go to Start (not addition)
   useEffect(() => {
     if (showGif) return;
     if (localStorage.getItem("isLoggedIn") === "1") {
@@ -34,50 +34,43 @@ export default function Register() {
     e.preventDefault();
     if (loading) return;
 
-    const u = username.trim();
-    const p = password.trim();
-    const a = String(age).trim();
-
-    if (u === "" || p === "" || a === "") {
-      setMsg("הכנס שם משתמש, סיסמה וגיל");
-      return;
-    }
-
-    const ageNum = Number(a);
-    if (!Number.isInteger(ageNum) || ageNum < 6 || ageNum > 12) {
-      setMsg("גיל חייב להיות בין 6 ל-12");
+    if (username.trim() === "" || password.trim() === "") {
+      setMsg("הכנס שם משתמש וסיסמה");
       return;
     }
 
     setLoading(true);
-    setMsg("נרשם...");
+    setMsg("בודק...");
 
     try {
-      const { res, data } = await registerUser(u, p, ageNum);
+      const { res, data } = await checkLogin(username, password);
 
-      // תואם לקוד השרת שלך: success
-      if (!res.ok || !data?.success) {
-        setMsg(data?.error || "הרשמה נכשלה");
+      if (!res.ok) {
+        setMsg(data?.error || "שגיאה");
         return;
       }
 
-      setMsg("נרשמת בהצלחה ✅");
-      setShowGif(true);
+      if (data.ok) {
+        setMsg("התחברות הצליחה ✅");
+        setShowGif(true);
 
-      timerRef.current = setTimeout(() => {
-        localStorage.setItem("isLoggedIn", "1");
-        localStorage.setItem("username", u);
-        localStorage.setItem("age", String(ageNum));
+        timerRef.current = setTimeout(() => {
+          localStorage.setItem("isLoggedIn", "1");
+          localStorage.setItem("username", username.trim());
 
-        // ✅ Tell App.jsx to refresh "authed"
-        notifyAuthChanged();
+          // ✅ Tell App.jsx to refresh "authed"
+          notifyAuthChanged();
+          
 
 
-        // ✅ Go to Start after register
-        navigate("/start", { replace: true });
-      }, 800);
+          // ✅ Go to Start after login
+          navigate("/start", { replace: true });
+        }, 800);
 
-      return;
+        return;
+      }
+
+      setMsg(data.reason === "NO_USER" ? "שם משתמש לא קיים ❌" : "סיסמה לא נכונה ❌");
     } catch {
       setMsg("השרת לא זמין");
     } finally {
@@ -87,7 +80,7 @@ export default function Register() {
 
   return (
     <div style={{ maxWidth: 420, margin: "40px auto", fontFamily: "Arial" }}>
-      <h2>הרשמה</h2>
+      <h2>בדיקת התחברות</h2>
 
       <form onSubmit={onSubmit}>
         <input
@@ -105,18 +98,8 @@ export default function Register() {
           style={{ padding: "10px", width: "100%", marginBottom: 10 }}
         />
 
-        <input
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          placeholder="גיל (6-12)"
-          type="number"
-          min="6"
-          max="12"
-          style={{ padding: "10px", width: "100%", marginBottom: 10 }}
-        />
-
         <button type="submit" disabled={loading} style={{ padding: "10px 16px" }}>
-          {loading ? "נרשם..." : "הירשם"}
+          {loading ? "בודק..." : "בדוק"}
         </button>
       </form>
 
@@ -140,19 +123,19 @@ export default function Register() {
               borderRadius: 22,
               padding: 18,
               textAlign: "center",
-              width: 320,
+              width: 340,
               boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
             }}
           >
             <img
               src={catWelcomeGif}
               alt="Cat Welcome"
-              width={240}
+              width={260}
               height={240}
               style={{ borderRadius: 18, display: "block", margin: "0 auto" }}
             />
             <div style={{ marginTop: 10, fontWeight: 800, fontSize: 18 }}>
-              נרשמת בהצלחה! 🐱✨
+              התחברת בהצלחה! 🐱✨
             </div>
             <div style={{ color: "#555", marginTop: 4 }}>עוד רגע מתחילים…</div>
           </div>
@@ -161,7 +144,3 @@ export default function Register() {
     </div>
   );
 }
-
-
-
-

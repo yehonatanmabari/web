@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// Schema = מבנה של מסמך
+// Schema 
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -24,5 +24,5 @@ const UserSchema = new mongoose.Schema({
 
 });
 
-// יצירת מודל
+// Export the model
 module.exports = mongoose.model("User", UserSchema);
