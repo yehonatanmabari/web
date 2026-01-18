@@ -1,11 +1,45 @@
 // src/pages/PracticeAddition.jsx
-import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import useCatCongrats from "./useCatCongrats";
-import useCatUncongrats from "./useCatUncongrats";
+import React, { useEffect, useRef, useState } from "react";
+
+/**
+ * ✅ Works on Vercel + local:
+ * - Vercel: set VITE_API_BASE in Project Env Vars (e.g. https://your-api.vercel.app)
+ * - Local: if not set, falls back to http://localhost:3000
+ */
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+
+//const API_BASE = (import.meta?.env?.VITE_API_BASE || "http://localhost:3000").replace(/\/$/, "");
 
 const ADD_STATE_KEY = "addition_practice_state_v1";
-const API_BASE = "http://localhost:3000";
+
+/** ---------- Tiny helpers ---------- */
+async function apiFetch(path, options = {}) {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+    },
+  });
+
+  // Try parse JSON, but don't crash if not JSON
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const msg = data?.message || data?.error || `HTTP ${res.status}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 const LEVELS = {
   easy: { label: "מתחילים (0–10)", min: 0, max: 10 },
@@ -46,25 +80,12 @@ const LEVEL_TEXT = {
   },
 };
 
-function randInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/**
- * Create an addition question for the given level.
- */
-
 function makeQuestion(levelKey) {
   const { min, max } = LEVELS[levelKey] ?? LEVELS.easy;
   const a = randInt(min, max);
   const b = randInt(min, max);
   return { a, b, ans: a + b };
 }
-
-/**
- * Map addition_f from DB to level key:
- * 1 => easy, 2 => medium, 3+ => hard
- */
 
 function levelFromAdditionF(addition_f) {
   const n = Number(addition_f ?? 1);
@@ -73,18 +94,12 @@ function levelFromAdditionF(addition_f) {
   return "hard";
 }
 
-/**
- * Fetch addition_f for the current user.
- * Expected API response:
- * { ok: true, addition_f: number }
- */
 async function fetchAdditionF(username) {
+  // Adjust here if your server uses POST instead of query param
+  // ✅ current assumption: GET /user/addition-f?username=...
   try {
-    const res = await fetch(
-      `${API_BASE}/user/addition-f?username=${encodeURIComponent(username)}`
-    );
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.ok) return null;
+    const data = await apiFetch(`/user/addition-f?username=${encodeURIComponent(username)}`);
+    if (!data?.ok) return null;
     const n = Number(data.addition_f);
     return Number.isFinite(n) ? n : null;
   } catch {
@@ -92,12 +107,60 @@ async function fetchAdditionF(username) {
   }
 }
 
+/** ---------- Minimal "cat effects" (no external hooks) ---------- */
+function useMiniFx(durationMs = 900) {
+  const tRef = useRef(null);
+  const [on, setOn] = useState(false);
+
+  function trigger() {
+    setOn(true);
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => setOn(false), durationMs);
+  }
+
+  const Fx = ({ good = true }) =>
+    on ? (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          pointerEvents: "none",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            border: "1px solid #e2e8f0",
+            borderRadius: 16,
+            padding: "10px 14px",
+            fontWeight: 900,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            transform: "translateY(-10px)",
+          }}
+        >
+          {good ? "😺✨ כל הכבוד!" : "🙀 אופס! נסה שוב"}
+        </div>
+      </div>
+    ) : null;
+
+  useEffect(() => {
+    return () => {
+      if (tRef.current) clearTimeout(tRef.current);
+    };
+  }, []);
+
+  return { trigger, Fx };
+}
+
+/** ---------- Component ---------- */
 export default function PracticeAddition() {
-  const navigate = useNavigate();
   const timerRef = useRef(null);
 
-  const { triggerCatFx, CatCongrats } = useCatCongrats(900);
-  const { triggerBadCatFx, CatUncongrats } = useCatUncongrats(900);
+  const goodFx = useMiniFx(900);
+  const badFx = useMiniFx(900);
 
   const [level, setLevel] = useState("easy");
   const [q, setQ] = useState(() => makeQuestion("easy"));
@@ -106,27 +169,18 @@ export default function PracticeAddition() {
   const [story, setStory] = useState("");
   const [noPointsThisQuestion, setNoPointsThisQuestion] = useState(false);
 
-  /**
-   * Persist practice state in sessionStorage so navigating to /cat-story
-   * does not reset the current exercise.
-   */
   function savePracticeState(next = {}) {
     sessionStorage.setItem(
       ADD_STATE_KEY,
-      JSON.stringify({ level, q, input, msg, noPointsThisQuestion, ...next })
+      JSON.stringify({ level, q, input, msg, noPointsThisQuestion, story, ...next })
     );
   }
 
-  /** Clear persisted practice state */
   function clearPracticeState() {
     sessionStorage.removeItem(ADD_STATE_KEY);
   }
 
-  /**
-   * On mount:
-   * 1) restore the practice state if it exists
-   * 2) restore the cat story if it exists
-   */
+  /** On mount: restore state */
   useEffect(() => {
     const saved = sessionStorage.getItem(ADD_STATE_KEY);
     if (saved) {
@@ -136,24 +190,15 @@ export default function PracticeAddition() {
         if (st?.q) setQ(st.q);
         if (typeof st?.input === "string") setInput(st.input);
         if (typeof st?.msg === "string") setMsg(st.msg);
-        if (typeof st?.noPointsThisQuestion === "boolean")
-          setNoPointsThisQuestion(st.noPointsThisQuestion);
+        if (typeof st?.story === "string") setStory(st.story);
+        if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
       } catch {
         // ignore
       }
     }
-
-    const s = sessionStorage.getItem("cat_story_text");
-    if (s) {
-      setStory(s);
-      sessionStorage.removeItem("cat_story_text");
-    }
   }, []);
 
-  /**
-   * Auto-select difficulty level from addition_f (DB).
-   * Important: if we have saved practice state, do NOT override it.
-   */
+  /** Auto-select level from DB ONLY if no saved state */
   useEffect(() => {
     (async () => {
       if (sessionStorage.getItem(ADD_STATE_KEY)) return;
@@ -168,72 +213,59 @@ export default function PracticeAddition() {
       setQ(makeQuestion(newLevel));
       setInput("");
       setMsg("");
+      setStory("");
       setNoPointsThisQuestion(false);
     })();
   }, []);
 
-  /**
-   * Move to next question:
-   * - cancel pending timers
-   * - clear stored state and story
-   * - generate a new question
-   */
   function goNextQuestion(nextLevel = level) {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     clearPracticeState();
-    setStory("");
-    sessionStorage.removeItem("cat_story_text");
     setMsg("");
     setInput("");
+    setStory("");
     setNoPointsThisQuestion(false);
     setQ(makeQuestion(nextLevel));
   }
 
-  /**
-   * Navigate to the story screen for the current question.
-   * We mark this question as "no points" to prevent scoring after story.
-   */
+  /** Local story instead of navigating to /cat-story (so 1-file demo works) */
   function goStory() {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
 
-    setNoPointsThisQuestion(true);
-    savePracticeState({ noPointsThisQuestion: true });
+    const s =
+      `מתי החתול אומר 😺:\n` +
+      `בתרגיל הזה יש לנו ${q.a} ועוד ${q.b}.\n` +
+      `אפשר לפרק: ${q.a} + ${q.b} = ${q.ans}.\n` +
+      `יאללה תנסה לענות לבד!`;
 
-    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "+" } });
+    setNoPointsThisQuestion(true);
+    setStory(s);
+    setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
+    savePracticeState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
   }
 
-  /**
-   * Optional scoring:
-   * Only increase score if user did NOT ask for a story.
-   */
   async function incAdditionScoreIfAllowed() {
     if (noPointsThisQuestion) return;
-
     const username = localStorage.getItem("username");
     if (!username) return;
 
     try {
-      await fetch(`${API_BASE}/score/addition`, {
+      // ✅ expected: POST /score/addition  body: { username }
+      await apiFetch("/score/addition", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
       });
     } catch {
-      // no UI interruption if server is down
+      // ignore (no UI interruption)
     }
   }
 
-  /**
-   * Validate input and check answer.
-   * On correct answer: show success, trigger effects, optionally score, then auto-advance.
-   * On wrong answer: show error, trigger bad effects.
-   */
   function checkAnswer() {
     const val = Number(input);
 
@@ -245,13 +277,11 @@ export default function PracticeAddition() {
     }
 
     if (val === q.ans) {
-      const m = noPointsThisQuestion
-        ? "✅ נכון (בלי נקודות כי ביקשת סיפור)"
-        : "✅ נכון";
+      const m = noPointsThisQuestion ? "✅ נכון (בלי נקודות כי ביקשת סיפור)" : "✅ נכון";
       setMsg(m);
       savePracticeState({ msg: m });
 
-      triggerCatFx();
+      goodFx.trigger();
       incAdditionScoreIfAllowed();
 
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -259,7 +289,7 @@ export default function PracticeAddition() {
       return;
     }
 
-    triggerBadCatFx();
+    badFx.trigger();
     const m = "❌ לא נכון";
     setMsg(m);
     savePracticeState({ msg: m });
@@ -283,23 +313,22 @@ export default function PracticeAddition() {
         position: "relative",
       }}
     >
-      <CatCongrats />
-      <CatUncongrats />
+      <goodFx.Fx good />
+      <badFx.Fx good={false} />
+
+      <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+        API_BASE: <b>{API_BASE}</b>
+      </div>
 
       <h2>תרגול חיבור</h2>
 
       <div className="mt-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
         <div className="text-xs font-bold text-slate-600">הרמה שלך:</div>
         <div className="text-sm font-extrabold text-slate-900">
-          {level === "easy"
-            ? "מתחילים 😺"
-            : level === "medium"
-            ? "מתקדמים 🐾"
-            : "אלופים 🐯"}
+          {level === "easy" ? "מתחילים 😺" : level === "medium" ? "מתקדמים 🐾" : "אלופים 🐯"}
         </div>
       </div>
 
-      {/* Correct display: a + b = ? */}
       <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
         = {q.b} + {q.a}
       </div>
