@@ -283,7 +283,7 @@ export default function PracticeSubtraction() {
       </div>
 
       <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
-         {q.b} − {q.a} =
+        = {q.b} − {q.a} 
       </div>
 
       <input
