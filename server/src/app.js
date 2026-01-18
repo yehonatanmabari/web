@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const { archiveAndResetScores } = require("./weeklyResetScores");
 
+CMON = process.env.MONGO_URI || "NoMongo";
 const User = require("../models/User");
 const express = require("express");
 const cors = require("cors");
@@ -92,7 +93,7 @@ app.post("/check-login", async (req, res) => {
 
     return res.json({ ok: true });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message + " " + CMON});
   }
 });
 
