@@ -8,6 +8,7 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.get("/health", (req, res) => res.json({ ok: true }));
 
 cron.schedule("0 0 * * *", async () => {
   await archiveAndResetScores();

@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 export async function checkLogin(username, password) {
   const res = await fetch(`${API_BASE}/check-login`, {
