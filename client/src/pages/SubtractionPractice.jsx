@@ -1,17 +1,53 @@
-import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/PracticeSubtraction.jsx
+import React, { useEffect, useRef, useState } from "react";
 import useCatCongrats from "./useCatCongrats";
 import useCatUncongrats from "./useCatUncongrats";
 
-const SUB_STATE_KEY = "subtraction_practice_state_v1";
-const API_BASE = "http://localhost:3000";
+/**
+ * ✅ Works on Vercel + local:
+ * - Vercel: set VITE_API_BASE in Project Env Vars (e.g. https://your-api.vercel.app)
+ * - Local: if not set, falls back to http://localhost:3000
+ */
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
+const SUB_STATE_KEY = "subtraction_practice_state_v1";
+
+/** ---------- Tiny helpers ---------- */
+async function apiFetch(path, options = {}) {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const msg = data?.message || data?.error || `HTTP ${res.status}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/** ✅ שלך בדיוק */
 const LEVELS = {
   easy: { label: "מתחילים (0–10)", min: 0, max: 10 },
   medium: { label: "מתקדמים (0–50)", min: 0, max: 50 },
   hard: { label: "אלופים (0–200)", min: 0, max: 200 },
 };
 
+/** ✅ שלך בדיוק */
 const LEVEL_TEXT = {
   easy: {
     title: "רמה קלה 😺",
@@ -46,26 +82,17 @@ const LEVEL_TEXT = {
   },
 };
 
-function randInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/**
- * Create a subtraction question for the given level.
- * We ensure a >= b so the answer is non-negative (kid-friendly).
- */
 function makeQuestion(levelKey) {
   const { min, max } = LEVELS[levelKey] ?? LEVELS.easy;
   let a = randInt(min, max);
   let b = randInt(min, max);
-  if (a < b) [a, b] = [b, a];
+
+  // כדי לא לקבל תשובה שלילית
+  if (b > a) [a, b] = [b, a];
+
   return { a, b, ans: a - b };
 }
 
-/**
- * Map subtraction_f from DB to level key:
- * 1 => easy, 2 => medium, 3+ => hard
- */
 function levelFromSubtractionF(subtraction_f) {
   const n = Number(subtraction_f ?? 1);
   if (!Number.isFinite(n) || n <= 1) return "easy";
@@ -73,18 +100,11 @@ function levelFromSubtractionF(subtraction_f) {
   return "hard";
 }
 
-/**
- * Fetch subtraction_f for the current user.
- * Expected API response:
- * { ok: true, subtraction_f: number }
- */
 async function fetchSubtractionF(username) {
+  // ✅ assumption: GET /user/subtraction-f?username=...
   try {
-    const res = await fetch(
-      `${API_BASE}/user/subtraction-f?username=${encodeURIComponent(username)}`
-    );
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.ok) return null;
+    const data = await apiFetch(`/user/subtraction-f?username=${encodeURIComponent(username)}`);
+    if (!data?.ok) return null;
     const n = Number(data.subtraction_f);
     return Number.isFinite(n) ? n : null;
   } catch {
@@ -92,8 +112,8 @@ async function fetchSubtractionF(username) {
   }
 }
 
+/** ---------- Component ---------- */
 export default function PracticeSubtraction() {
-  const navigate = useNavigate();
   const timerRef = useRef(null);
 
   const { triggerCatFx, CatCongrats } = useCatCongrats(900);
@@ -106,27 +126,18 @@ export default function PracticeSubtraction() {
   const [story, setStory] = useState("");
   const [noPointsThisQuestion, setNoPointsThisQuestion] = useState(false);
 
-  /**
-   * Persist practice state in sessionStorage so navigating to /cat-story
-   * does not reset the current exercise.
-   */
   function savePracticeState(next = {}) {
     sessionStorage.setItem(
       SUB_STATE_KEY,
-      JSON.stringify({ level, q, input, msg, noPointsThisQuestion, ...next })
+      JSON.stringify({ level, q, input, msg, noPointsThisQuestion, story, ...next })
     );
   }
 
-  /** Clear persisted practice state */
   function clearPracticeState() {
     sessionStorage.removeItem(SUB_STATE_KEY);
   }
 
-  /**
-   * On mount:
-   * 1) restore the practice state if it exists
-   * 2) restore the cat story if it exists
-   */
+  /** On mount: restore state */
   useEffect(() => {
     const saved = sessionStorage.getItem(SUB_STATE_KEY);
     if (saved) {
@@ -136,24 +147,15 @@ export default function PracticeSubtraction() {
         if (st?.q) setQ(st.q);
         if (typeof st?.input === "string") setInput(st.input);
         if (typeof st?.msg === "string") setMsg(st.msg);
-        if (typeof st?.noPointsThisQuestion === "boolean")
-          setNoPointsThisQuestion(st.noPointsThisQuestion);
+        if (typeof st?.story === "string") setStory(st.story);
+        if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
       } catch {
         // ignore
       }
     }
-
-    const s = sessionStorage.getItem("cat_story_text");
-    if (s) {
-      setStory(s);
-      sessionStorage.removeItem("cat_story_text");
-    }
   }, []);
 
-  /**
-   * Auto-select difficulty level from subtraction_f (DB).
-   * Important: if we have saved practice state, do NOT override it.
-   */
+  /** Auto-select level from DB ONLY if no saved state */
   useEffect(() => {
     (async () => {
       if (sessionStorage.getItem(SUB_STATE_KEY)) return;
@@ -168,73 +170,59 @@ export default function PracticeSubtraction() {
       setQ(makeQuestion(newLevel));
       setInput("");
       setMsg("");
+      setStory("");
       setNoPointsThisQuestion(false);
     })();
   }, []);
 
-  /**
-   * Move to next question:
-   * - cancel pending timers
-   * - clear stored state and story
-   * - generate a new question
-   */
   function goNextQuestion(nextLevel = level) {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     clearPracticeState();
-    setStory("");
-    sessionStorage.removeItem("cat_story_text");
     setMsg("");
     setInput("");
+    setStory("");
     setNoPointsThisQuestion(false);
     setQ(makeQuestion(nextLevel));
   }
 
-  /**
-   * Navigate to the story screen for the current question.
-   * We mark this question as "no points" to prevent scoring after story.
-   */
   function goStory() {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
 
-    setNoPointsThisQuestion(true);
-    savePracticeState({ noPointsThisQuestion: true });
+    const s =
+      `מתי החתול אומר 😺:\n` +
+      `בתרגיל הזה יש לנו ${q.a} פחות ${q.b}.\n` +
+      `אפשר לחשוב: אם יש לי ${q.a} עוגיות,\n` +
+      `ואני נותן ${q.b} לחברים — נשאר ${q.ans}.\n` +
+      `יאללה תנסה לענות לבד!`;
 
-    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "-" } });
+    setNoPointsThisQuestion(true);
+    setStory(s);
+    setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
+    savePracticeState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
   }
 
-  /**
-   * Optional scoring:
-   * Only increase score if user did NOT ask for a story.
-   * If you later want to show score on screen, you can also parse the response here.
-   */
   async function incSubtractionScoreIfAllowed() {
     if (noPointsThisQuestion) return;
-
     const username = localStorage.getItem("username");
     if (!username) return;
 
     try {
-      await fetch(`${API_BASE}/score/subtraction`, {
+      // ✅ expected: POST /score/subtraction  body: { username }
+      await apiFetch("/score/subtraction", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
       });
     } catch {
-      // no UI interruption if server is down
+      // ignore
     }
   }
 
-  /**
-   * Validate input and check answer.
-   * On correct answer: show success, trigger effects, optionally score, then auto-advance.
-   * On wrong answer: show error, trigger bad effects.
-   */
   function checkAnswer() {
     const val = Number(input);
 
@@ -246,9 +234,7 @@ export default function PracticeSubtraction() {
     }
 
     if (val === q.ans) {
-      const m = noPointsThisQuestion
-        ? "✅ נכון (בלי נקודות כי ביקשת סיפור)"
-        : "✅ נכון";
+      const m = noPointsThisQuestion ? "✅ נכון (בלי נקודות כי ביקשת סיפור)" : "✅ נכון";
       setMsg(m);
       savePracticeState({ msg: m });
 
@@ -292,17 +278,12 @@ export default function PracticeSubtraction() {
       <div className="mt-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
         <div className="text-xs font-bold text-slate-600">הרמה שלך:</div>
         <div className="text-sm font-extrabold text-slate-900">
-          {level === "easy"
-            ? "מתחילים 😺"
-            : level === "medium"
-            ? "מתקדמים 🐾"
-            : "אלופים 🐯"}
+          {level === "easy" ? "מתחילים 😺" : level === "medium" ? "מתקדמים 🐾" : "אלופים 🐯"}
         </div>
       </div>
 
-      {/* Correct display: a - b */}
       <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
-        ?= {q.b} − {q.a}
+        = {q.a} − {q.b}
       </div>
 
       <input
@@ -369,9 +350,7 @@ export default function PracticeSubtraction() {
 
       {story ? (
         <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-          <div className="text-sm font-extrabold text-slate-900">
-            הסיפור של מתי 😺
-          </div>
+          <div className="text-sm font-extrabold text-slate-900">הסיפור של מתי 😺</div>
           <pre className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">
             {story}
           </pre>
@@ -380,4 +359,3 @@ export default function PracticeSubtraction() {
     </div>
   );
 }
-
