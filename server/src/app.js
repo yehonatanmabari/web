@@ -1,12 +1,12 @@
-const mongoose = require("mongoose");
 const cron = require("node-cron");
 const { archiveAndResetScores } = require("./weeklyResetScores");
 const { connectDb } = require("./db");
 
-CMON = process.env.MONGO_URI || "NoMongo";
 const User = require("../models/User");
 const express = require("express");
 const cors = require("cors");
+
+const CMON = process.env.MONGO_URI || "NoMongo";
 
 const app = express();
 app.use(cors());
@@ -19,13 +19,17 @@ app.get("/", (req, res) => {
 });
 
 /**
- * Run daily job at 00:00 Israel time.
- * IMPORTANT: Without timezone, many hosts run cron in UTC.
+ * Run daily job at 00:00 Israel time (important on Vercel / UTC servers).
  */
 cron.schedule(
   "0 0 * * *",
   async () => {
-    await archiveAndResetScores();
+    try {
+      await connectDb();
+      await archiveAndResetScores();
+    } catch (e) {
+      console.log("CRON ERR:", e);
+    }
   },
   { timezone: "Asia/Jerusalem" }
 );
@@ -39,12 +43,8 @@ app.use((req, res, next) => {
 });
 
 /**
- * Returns a 0..6 index for the current day in Israel time.
- * We choose: 0=Sunday, 1=Monday, ... 6=Saturday (Israel-friendly).
- *
- * Why not Date.getDay() directly?
- * Because server timezone might be UTC or something else.
- * Using Intl + timeZone makes it consistent.
+ * Returns 0..6 for Israel time, where 0=Sunday ... 6=Saturday.
+ * We use Intl with timeZone so it does not depend on server timezone.
  */
 function getIsraelDayIndex() {
   const weekday = new Intl.DateTimeFormat("en-US", {
@@ -52,24 +52,30 @@ function getIsraelDayIndex() {
     weekday: "short",
   }).format(new Date());
 
-  // Map short weekday strings to our 0..6 index
   const map = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   return map[weekday] ?? 0;
 }
 
 /**
- * Generic score increment route factory for WEEK ARRAYS.
+ * Safe getter for "today value" from a 7-length array field.
+ * If something is missing/corrupt, we fall back to 0 (prevents NaN).
+ */
+function getTodayValue(user, field, dayIndex) {
+  const arr = user?.[field];
+  if (!Array.isArray(arr)) return 0;
+  const v = Number(arr[dayIndex]);
+  return Number.isFinite(v) ? v : 0;
+}
+
+/**
+ * Generic score increment route factory for WEEK ARRAYS in DB,
+ * BUT returns only TODAY's number to the client (not the array).
  *
- * Your schema fields (addition/subtraction/...) are arrays of length 7.
- * So we must increment the element for TODAY, not the whole field.
- *
- * Example:
- * field = "addition"
- * dayIndex = 3  => we increment "addition.3"
+ * DB update: increments `${field}.${dayIndex}`
+ * Response: returns `{ field: <todayNumber>, dayIndex }`
  */
 function makeIncScoreRoute(field) {
   return async (req, res) => {
-    // Ensure DB is connected (recommended for serverless / cold starts)
     await connectDb();
 
     try {
@@ -79,20 +85,21 @@ function makeIncScoreRoute(field) {
       const dayIndex = getIsraelDayIndex();
       const dayPath = `${field}.${dayIndex}`; // e.g. "addition.3"
 
-      // Increment only today's slot in the 7-length array
       const user = await User.findOneAndUpdate(
         { username },
         { $inc: { [dayPath]: 1 } },
-        { new: true }
-      ).select("-password");
+        { new: true, projection: { password: 0 } }
+      );
 
       if (!user) return res.status(404).json({ ok: false, error: "NO_USER" });
 
-      // Return the whole 7-length array + which day we incremented
+      const todayValue = getTodayValue(user, field, dayIndex);
+
+      // IMPORTANT: return number (today), not array
       return res.json({
         ok: true,
-        [field]: user.get(field),
         dayIndex,
+        [field]: todayValue,
       });
     } catch (e) {
       console.log("ERR:", e);
@@ -165,7 +172,7 @@ app.post("/register", async (req, res) => {
       return res.status(409).json({ success: false, error: "שם משתמש כבר קיים" });
     }
 
-    // Arrays default to length 7 (from schema), so new users are always safe
+    // Schema defaults create 7-length arrays automatically
     const user = await User.create({ username, password, age: ageNum });
     return res.json({ success: true, id: user._id });
   } catch (err) {
@@ -175,10 +182,65 @@ app.post("/register", async (req, res) => {
 
 // ------------------------- USER STATS -------------------------
 
+/**
+ * Returns ONLY today's numbers (NOT arrays).
+ * This prevents NaN in the UI and keeps the client simple.
+ *
+ * Response shape:
+ * {
+ *   ok: true,
+ *   dayIndex: 0..6,
+ *   user: {
+ *     username,
+ *     addition: <number>,
+ *     subtraction: <number>,
+ *     multiplication: <number>,
+ *     division: <number>,
+ *     percent: <number>
+ *   }
+ * }
+ */
 app.post("/user/stats", async (req, res) => {
   await connectDb();
+
   try {
-    const { username } = req.body;
+    const { username } = req.body || {};
+    if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
+
+    // We still fetch arrays from DB, but we convert them to today's number in response.
+    const userDoc = await User.findOne({ username }).select(
+      "username addition subtraction multiplication division percent -_id"
+    );
+
+    if (!userDoc) return res.status(404).json({ ok: false, error: "NO_USER" });
+
+    const dayIndex = getIsraelDayIndex();
+
+    const user = {
+      username: userDoc.username,
+      addition: getTodayValue(userDoc, "addition", dayIndex),
+      subtraction: getTodayValue(userDoc, "subtraction", dayIndex),
+      multiplication: getTodayValue(userDoc, "multiplication", dayIndex),
+      division: getTodayValue(userDoc, "division", dayIndex),
+      percent: getTodayValue(userDoc, "percent", dayIndex),
+    };
+
+    return res.json({ ok: true, dayIndex, user });
+  } catch (err) {
+    console.error("user/stats error:", err);
+    return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+  }
+});
+
+/**
+ * OPTIONAL: If you ever need weekly graphs, use this endpoint.
+ * It returns the arrays (7-length) as stored in the DB.
+ */
+app.post("/user/stats-week", async (req, res) => {
+  await connectDb();
+
+  try {
+    const { username } = req.body || {};
     if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
 
     const user = await User.findOne({ username }).select(
@@ -187,14 +249,14 @@ app.post("/user/stats", async (req, res) => {
 
     if (!user) return res.status(404).json({ ok: false, error: "NO_USER" });
 
-    res.json({ ok: true, user });
+    return res.json({ ok: true, user });
   } catch (err) {
-    console.error("user/stats error:", err);
-    res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+    console.error("user/stats-week error:", err);
+    return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
   }
 });
 
-// ------------------------- SCORE (WEEK ARRAYS) -------------------------
+// ------------------------- SCORE (TODAY ONLY IN RESPONSE) -------------------------
 
 app.post("/score/addition", makeIncScoreRoute("addition"));
 app.post("/score/subtraction", makeIncScoreRoute("subtraction"));
@@ -202,7 +264,7 @@ app.post("/score/multiplication", makeIncScoreRoute("multiplication"));
 app.post("/score/division", makeIncScoreRoute("division"));
 app.post("/score/percent", makeIncScoreRoute("percent"));
 
-// ------------------------- FACTORS (PLAIN NUMBERS) -------------------------
+// ------------------------- FACTORS -------------------------
 
 app.get("/user/addition-f", makeGetFactorRoute("addition_f"));
 app.get("/user/subtraction-f", makeGetFactorRoute("subtraction_f"));
