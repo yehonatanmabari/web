@@ -1,22 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-const weekDataset = [
-  { day: "יום א׳", addition: 8, subtraction: 6, multiplication: 4, division: 2, percent: 1 },
-  { day: "יום ב׳", addition: 10, subtraction: 7, multiplication: 5, division: 3, percent: 2 },
-  { day: "יום ג׳", addition: 12, subtraction: 8, multiplication: 6, division: 4, percent: 2 },
-  { day: "יום ד׳", addition: 14, subtraction: 10, multiplication: 8, division: 5, percent: 3 },
-  { day: "יום ה׳", addition: 15, subtraction: 12, multiplication: 9, division: 6, percent: 4 },
-  { day: "יום ו׳", addition: 6, subtraction: 5, multiplication: 3, division: 2, percent: 1 },
-  { day: "שבת", addition: 4, subtraction: 3, multiplication: 2, division: 1, percent: 0 },
-];
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
-const weeklyPerformance = {
-  addition: { accuracy: 92, avgSec: 18 },
-  subtraction: { accuracy: 88, avgSec: 22 },
-  multiplication: { accuracy: 81, avgSec: 28 },
-  division: { accuracy: 74, avgSec: 34 },
-  percent: { accuracy: 69, avgSec: 40 },
-};
+// 0=Sunday ... 6=Saturday (same convention as we used on server)
+const HEB_DAYS = ["יום א׳", "יום ב׳", "יום ג׳", "יום ד׳", "יום ה׳", "יום ו׳", "שבת"];
 
 const subjectMeta = [
   { key: "addition", label: "חיבור", emoji: "➕" },
@@ -26,19 +13,17 @@ const subjectMeta = [
   { key: "percent", label: "אחוזים", emoji: "％" },
 ];
 
-function sum(arr, pick) {
-  return arr.reduce((acc, x) => acc + (Number(x[pick]) || 0), 0);
-}
-
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
 }
 
-function medalFromAccuracy(a) {
-  if (a >= 90) return { emoji: "🥇", title: "מצוין" };
-  if (a >= 80) return { emoji: "🥈", title: "טוב מאוד" };
-  if (a >= 70) return { emoji: "🥉", title: "בכיוון נכון" };
-  return { emoji: "🎯", title: "דורש חיזוק" };
+function sumNumbers(arr) {
+  if (!Array.isArray(arr)) return 0;
+  return arr.reduce((acc, x) => acc + (Number.isFinite(Number(x)) ? Number(x) : 0), 0);
+}
+
+function dailyTotal(d) {
+  return d.addition + d.subtraction + d.multiplication + d.division + d.percent;
 }
 
 function trendLabel(firstHalf, secondHalf) {
@@ -56,58 +41,154 @@ function badgeClass(kind) {
 function pickBestDay(dataset) {
   const dayTotals = dataset.map((d) => ({
     day: d.day,
-    total: d.addition + d.subtraction + d.multiplication + d.division + d.percent,
+    total: dailyTotal(d),
   }));
   return dayTotals.reduce((best, cur) => (cur.total > best.total ? cur : best), dayTotals[0]);
 }
 
-function dailyTotal(d) {
-  return d.addition + d.subtraction + d.multiplication + d.division + d.percent;
+/**
+ * Build weekDataset from DB arrays.
+ * Ensures length=7 and converts everything to safe numbers.
+ */
+function buildWeekDataset(user) {
+  const safeArr = (a) => {
+    if (!Array.isArray(a) || a.length !== 7) return Array(7).fill(0);
+    return a.map((x) => (Number.isFinite(Number(x)) ? Number(x) : 0));
+  };
+
+  const addition = safeArr(user?.addition);
+  const subtraction = safeArr(user?.subtraction);
+  const multiplication = safeArr(user?.multiplication);
+  const division = safeArr(user?.division);
+  const percent = safeArr(user?.percent);
+
+  return Array.from({ length: 7 }, (_, i) => ({
+    day: HEB_DAYS[i],
+    addition: addition[i],
+    subtraction: subtraction[i],
+    multiplication: multiplication[i],
+    division: division[i],
+    percent: percent[i],
+  }));
 }
 
 export default function ParentReport() {
-  const [childName] = useState("מתי");
+  // Take from localStorage (change to your real auth store if needed)
+  const username = useMemo(() => localStorage.getItem("username") || "", []);
+
+  const [childName, setChildName] = useState("הילד/ה"); // optional: you can replace with real user name
   const [rangeLabel] = useState("7 ימים אחרונים");
 
+  const [weekDataset, setWeekDataset] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setErr("");
+
+        if (!username) {
+          throw new Error("NO_USERNAME_IN_LOCALSTORAGE");
+        }
+
+        const res = await fetch(`${API_BASE}/user/stats-week`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) {
+          throw new Error(data?.error || `HTTP_${res.status}`);
+        }
+
+        const user = data.user || {};
+        const dataset = buildWeekDataset(user);
+
+        if (!alive) return;
+
+        setWeekDataset(dataset);
+
+        // optional: show actual username as childName
+        setChildName(user.username || "הילד/ה");
+      } catch (e) {
+        if (!alive) return;
+        setErr(String(e?.message || e));
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    }
+//fix
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [username]);
+
   const stats = useMemo(() => {
+    if (!weekDataset) return null;
+
     const totals = {};
-    for (const s of subjectMeta) totals[s.key] = sum(weekDataset, s.key);
+    for (const s of subjectMeta) {
+      totals[s.key] = sumNumbers(weekDataset.map((d) => d[s.key]));
+    }
 
     const totalAll = Object.values(totals).reduce((a, b) => a + b, 0);
 
-    const firstHalf =
-      weekDataset
-        .slice(0, 3)
-        .reduce((acc, d) => acc + dailyTotal(d), 0) / 3;
-
-    const secondHalf =
-      weekDataset
-        .slice(3)
-        .reduce((acc, d) => acc + dailyTotal(d), 0) / 4;
+    const firstHalf = weekDataset.slice(0, 3).reduce((acc, d) => acc + dailyTotal(d), 0) / 3;
+    const secondHalf = weekDataset.slice(3).reduce((acc, d) => acc + dailyTotal(d), 0) / 4;
 
     const trend = trendLabel(firstHalf, secondHalf);
     const bestDay = pickBestDay(weekDataset);
 
+    // "Focus" now means: the subject with the LOWEST weekly practice (real data)
     const focus = subjectMeta
-      .map((s) => ({
-        key: s.key,
-        label: s.label,
-        accuracy: weeklyPerformance[s.key]?.accuracy ?? 0,
-        total: totals[s.key] ?? 0,
-      }))
-      .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total)[0];
+      .map((s) => ({ key: s.key, label: s.label, total: totals[s.key] ?? 0 }))
+      .sort((a, b) => a.total - b.total)[0];
 
+    // "Strongest" means: the subject with the HIGHEST weekly practice (real data)
     const strongest = subjectMeta
-      .map((s) => ({
-        key: s.key,
-        label: s.label,
-        accuracy: weeklyPerformance[s.key]?.accuracy ?? 0,
-        total: totals[s.key] ?? 0,
-      }))
-      .sort((a, b) => b.accuracy - a.accuracy || b.total - a.total)[0];
+      .map((s) => ({ key: s.key, label: s.label, total: totals[s.key] ?? 0 }))
+      .sort((a, b) => b.total - a.total)[0];
 
-    return { totals, totalAll, trend, bestDay, focus, strongest };
-  }, []);
+    // Progress bar can be based on “weekly goal”
+    const weeklyGoal = 15 * 7; // example goal: 15 exercises per day across all subjects
+    const goalPct = weeklyGoal ? clamp((totalAll / weeklyGoal) * 100, 0, 100) : 0;
+
+    return { totals, totalAll, trend, bestDay, focus, strongest, weeklyGoal, goalPct };
+  }, [weekDataset]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4">
+        <div className="mx-auto max-w-5xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="text-lg font-extrabold text-slate-900">טוען נתונים…</div>
+          <div className="mt-2 text-slate-600">מביא נתוני שבוע מהשרת.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (err || !stats) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4">
+        <div className="mx-auto max-w-5xl rounded-3xl border border-rose-200 bg-white p-6 shadow-sm">
+          <div className="text-lg font-extrabold text-rose-700">שגיאה בטעינת הדוח</div>
+          <div className="mt-2 text-slate-700">
+            {err || "UNKNOWN_ERROR"}
+          </div>
+          <div className="mt-3 text-sm text-slate-600">
+            בדוק שהשרת רץ ושיש endpoint <b>/user/stats-week</b>, וש־username קיים ב־localStorage.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4">
@@ -120,7 +201,7 @@ export default function ParentReport() {
               <div className="mt-1 text-2xl font-extrabold text-slate-900">
                 התקדמות שבועית — {childName} 😺
               </div>
-              <div className="mt-2 text-slate-600">סיכום ביצועים, תרגול ומגמות לפי תחומים.</div>
+              <div className="mt-2 text-slate-600">הדוח מבוסס על נתוני שבוע אמיתיים מהשרת.</div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -132,9 +213,23 @@ export default function ParentReport() {
                 <span>📈</span>
                 <span>{stats.trend.text}</span>
               </span>
+
               <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-800">
                 🏆 יום שיא: <b>{stats.bestDay.day}</b> ({stats.bestDay.total} תרגילים)
               </span>
+            </div>
+          </div>
+
+          {/* Weekly goal progress (real, based on totalAll) */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-sm text-slate-700">
+              <span>התקדמות ליעד שבועי (סה״כ):</span>
+              <span>
+                <b>{stats.totalAll}</b> / {stats.weeklyGoal}
+              </span>
+            </div>
+            <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
+              <div className="h-2 rounded-full bg-slate-900" style={{ width: `${stats.goalPct}%` }} />
             </div>
           </div>
         </div>
@@ -151,14 +246,14 @@ export default function ParentReport() {
             <div className="text-sm text-slate-500">נושא לתשומת לב</div>
             <div className="mt-2 text-xl font-extrabold text-slate-900">{stats.focus.label} 🎯</div>
             <div className="mt-2 text-slate-600">
-              הצלחה: <b>{stats.focus.accuracy}%</b> • תרגול שבועי: <b>{stats.totals[stats.focus.key]}</b>
+              תרגול שבועי: <b>{stats.totals[stats.focus.key]}</b> (הכי נמוך השבוע)
             </div>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-sm text-slate-500">יעד לשבוע הבא</div>
+            <div className="text-sm text-slate-500">המלצה לשבוע הבא</div>
             <div className="mt-2 text-slate-800 leading-relaxed">
-              לשמור על <b>תרגול יומי קצר</b> ולהוסיף 5–10 תרגילים בנושאי <b>{stats.focus.label}</b>.
+              להוסיף תרגול קצר יומי בנושא <b>{stats.focus.label}</b> ולהביא אותו לרמה דומה לשאר התחומים.
             </div>
           </div>
         </div>
@@ -167,7 +262,7 @@ export default function ParentReport() {
         <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div>
             <div className="text-lg font-extrabold text-slate-900">תרגול יומי לפי תחום</div>
-            <div className="text-sm text-slate-500">פירוט לפי ימים — חיבור / חיסור / כפל / חילוק / אחוזים</div>
+            <div className="text-sm text-slate-500">מבוסס על מערכי השבוע מה־DB</div>
           </div>
 
           <div className="mt-4 overflow-x-auto">
@@ -183,6 +278,7 @@ export default function ParentReport() {
                   <th className="p-3 border-b border-slate-200">סה״כ</th>
                 </tr>
               </thead>
+
               <tbody>
                 {weekDataset.map((d, idx) => {
                   const total = dailyTotal(d);
@@ -201,6 +297,7 @@ export default function ParentReport() {
                   );
                 })}
               </tbody>
+
               <tfoot>
                 <tr className="bg-white">
                   <td className="sticky left-0 bg-white p-3 font-extrabold text-slate-900 border-t border-slate-200">
@@ -218,78 +315,38 @@ export default function ParentReport() {
           </div>
         </div>
 
-        {/* Per-subject cards + Insights */}
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {/* Per-subject */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-lg font-extrabold text-slate-900">סיכום לפי תחום</div>
-            <div className="mt-3 grid gap-3">
-              {subjectMeta.map((s) => {
-                const total = stats.totals[s.key];
-                const perf = weeklyPerformance[s.key];
-                const medal = medalFromAccuracy(perf.accuracy);
-                const bar = clamp(perf.accuracy, 0, 100);
-                return (
-                  <div key={s.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-extrabold text-slate-900">
-                        {s.emoji} {s.label}
-                      </div>
-                      <div className="text-sm text-slate-700">
-                        {medal.emoji} <b>{perf.accuracy}%</b> • {total} תרגילים
-                      </div>
-                    </div>
+        {/* Per-subject summary (REAL: totals only) */}
+        <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-lg font-extrabold text-slate-900">סיכום לפי תחום (אמיתי)</div>
+          <div className="mt-3 grid gap-3">
+            {subjectMeta.map((s) => {
+              const total = stats.totals[s.key] ?? 0;
+              const pct = stats.totalAll ? clamp((total / stats.totalAll) * 100, 0, 100) : 0;
 
-                    <div className="mt-3 h-2 w-full rounded-full bg-slate-200">
-                      <div className="h-2 rounded-full bg-slate-900" style={{ width: `${bar}%` }} />
+              return (
+                <div key={s.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-extrabold text-slate-900">
+                      {s.emoji} {s.label}
                     </div>
-
-                    <div className="mt-2 text-sm text-slate-600">
-                      זמן ממוצע לתרגיל: <b>{perf.avgSec}</b> שניות • סטטוס: <b>{medal.title}</b>
+                    <div className="text-sm text-slate-700">
+                      <b>{total}</b> תרגילים • {pct.toFixed(0)}%
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Insights */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-lg font-extrabold text-slate-900">תובנות והמלצות</div>
+                  <div className="mt-3 h-2 w-full rounded-full bg-slate-200">
+                    <div className="h-2 rounded-full bg-slate-900" style={{ width: `${pct}%` }} />
+                  </div>
 
-            <div className="mt-3 space-y-3 text-slate-700 leading-relaxed">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="font-bold text-slate-900">חוזקות ✅</div>
-                <ul className="mt-2 list-disc pr-5">
-                  <li>
-                    <b>{stats.strongest.label}</b> עם הצלחה של <b>{weeklyPerformance[stats.strongest.key].accuracy}%</b>.
-                  </li>
-                  <li>תרגול עקבי לאורך השבוע ושיפור בכמות התרגילים באמצע השבוע.</li>
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="font-bold text-slate-900">מוקד לשיפור 🎯</div>
-                <ul className="mt-2 list-disc pr-5">
-                  <li>
-                    להתמקד ב־<b>{stats.focus.label}</b> עם תרגול קצר יומי.
-                  </li>
-                  <li>להתחיל בשאלות קלות ולהעלות קושי בהדרגה.</li>
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-bold text-slate-900">יעד שבועי ⭐</div>
-                <div className="mt-2">
-                  לשמור על ממוצע של <b>{Math.max(10, Math.round(stats.totalAll / 7))}</b> תרגילים ביום,
-                  ולהוסיף <b>+5</b> תרגילים ב־<b>{stats.focus.label}</b>.
+                  <div className="mt-2 text-sm text-slate-600">
+                    חלק יחסי מסך התרגול השבועי בתחום הזה.
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Footer spacing */}
         <div className="h-6" />
       </div>
     </div>
