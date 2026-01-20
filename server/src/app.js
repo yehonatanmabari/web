@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const cron = require("node-cron");
 const { archiveAndResetScores } = require("./weeklyResetScores");
 const { connectDb } = require("./db");
@@ -10,17 +11,24 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 app.get("/health", (req, res) => res.json({ ok: true }));
-
-
 
 app.get("/", (req, res) => {
   res.json({ ok: true, msg: "API is up" });
 });
-cron.schedule("0 0 * * *", async () => {
-  await archiveAndResetScores();
-});
 
+/**
+ * Run daily job at 00:00 Israel time.
+ * IMPORTANT: Without timezone, many hosts run cron in UTC.
+ */
+cron.schedule(
+  "0 0 * * *",
+  async () => {
+    await archiveAndResetScores();
+  },
+  { timezone: "Asia/Jerusalem" }
+);
 
 // Log every request (server-side only) - hides password
 app.use((req, res, next) => {
@@ -31,23 +39,61 @@ app.use((req, res, next) => {
 });
 
 /**
- * Generic score increment route factory.
+ * Returns a 0..6 index for the current day in Israel time.
+ * We choose: 0=Sunday, 1=Monday, ... 6=Saturday (Israel-friendly).
+ *
+ * Why not Date.getDay() directly?
+ * Because server timezone might be UTC or something else.
+ * Using Intl + timeZone makes it consistent.
+ */
+function getIsraelDayIndex() {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jerusalem",
+    weekday: "short",
+  }).format(new Date());
+
+  // Map short weekday strings to our 0..6 index
+  const map = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return map[weekday] ?? 0;
+}
+
+/**
+ * Generic score increment route factory for WEEK ARRAYS.
+ *
+ * Your schema fields (addition/subtraction/...) are arrays of length 7.
+ * So we must increment the element for TODAY, not the whole field.
+ *
+ * Example:
+ * field = "addition"
+ * dayIndex = 3  => we increment "addition.3"
  */
 function makeIncScoreRoute(field) {
   return async (req, res) => {
+    // Ensure DB is connected (recommended for serverless / cold starts)
+    await connectDb();
+
     try {
       const username = String(req.body?.username || "").trim();
       if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
 
+      const dayIndex = getIsraelDayIndex();
+      const dayPath = `${field}.${dayIndex}`; // e.g. "addition.3"
+
+      // Increment only today's slot in the 7-length array
       const user = await User.findOneAndUpdate(
         { username },
-        { $inc: { [field]: 1 } },
+        { $inc: { [dayPath]: 1 } },
         { new: true }
       ).select("-password");
 
       if (!user) return res.status(404).json({ ok: false, error: "NO_USER" });
 
-      return res.json({ ok: true, [field]: user.get(field) }); // get בטוח יותר
+      // Return the whole 7-length array + which day we incremented
+      return res.json({
+        ok: true,
+        [field]: user.get(field),
+        dayIndex,
+      });
     } catch (e) {
       console.log("ERR:", e);
       return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
@@ -57,9 +103,12 @@ function makeIncScoreRoute(field) {
 
 /**
  * Generic factor getter route factory.
+ * (Your *_f fields are plain numbers, unchanged.)
  */
 function makeGetFactorRoute(field) {
   return async (req, res) => {
+    await connectDb();
+
     try {
       const username = String(req.query.username || "").trim();
       if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
@@ -93,11 +142,12 @@ app.post("/check-login", async (req, res) => {
 
     return res.json({ ok: true });
   } catch (err) {
-    return res.status(500).json({ error: err.message + " " + CMON});
+    return res.status(500).json({ error: err.message + " " + CMON });
   }
 });
 
 app.post("/register", async (req, res) => {
+  await connectDb();
   try {
     const { username, password, age } = req.body || {};
 
@@ -115,6 +165,7 @@ app.post("/register", async (req, res) => {
       return res.status(409).json({ success: false, error: "שם משתמש כבר קיים" });
     }
 
+    // Arrays default to length 7 (from schema), so new users are always safe
     const user = await User.create({ username, password, age: ageNum });
     return res.json({ success: true, id: user._id });
   } catch (err) {
@@ -125,6 +176,7 @@ app.post("/register", async (req, res) => {
 // ------------------------- USER STATS -------------------------
 
 app.post("/user/stats", async (req, res) => {
+  await connectDb();
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
@@ -142,7 +194,7 @@ app.post("/user/stats", async (req, res) => {
   }
 });
 
-// ------------------------- SCORE -------------------------
+// ------------------------- SCORE (WEEK ARRAYS) -------------------------
 
 app.post("/score/addition", makeIncScoreRoute("addition"));
 app.post("/score/subtraction", makeIncScoreRoute("subtraction"));
@@ -150,7 +202,7 @@ app.post("/score/multiplication", makeIncScoreRoute("multiplication"));
 app.post("/score/division", makeIncScoreRoute("division"));
 app.post("/score/percent", makeIncScoreRoute("percent"));
 
-// ------------------------- FACTORS -------------------------
+// ------------------------- FACTORS (PLAIN NUMBERS) -------------------------
 
 app.get("/user/addition-f", makeGetFactorRoute("addition_f"));
 app.get("/user/subtraction-f", makeGetFactorRoute("subtraction_f"));
