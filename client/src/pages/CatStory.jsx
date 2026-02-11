@@ -81,7 +81,7 @@ function computeAnswer(a, b, op) {
  * If something else arrives, we still produce a safe addition fallback.
  */
 function buildLocalFallback(state) {
-  console.log({ a, b, op });
+  console.log(state)
   const a = safeNum(state?.a, 1);
   const b = safeNum(state?.b, 1);
   const op = state?.op || "+";
