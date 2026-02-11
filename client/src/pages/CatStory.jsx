@@ -56,6 +56,23 @@ function pickLocalStoryByOrder(payload) {
   return String(entry);
 }
 
+function computeAnswer(a, b, op) {
+  switch (op) {
+    case "+":
+        return a + b;
+    case "*":
+        return a * b;
+    case "-":
+        return a - b;
+    case "/":
+        return b !== 0 ? a / b : null;
+    case "%":
+        return b !== 0 ? a % b : null;
+    default:
+      return a + b; // safe fallback so demo never dies
+  }
+}
+
 /**
  * Build a local fallback story + answer from the incoming state.
  * This is used when RAG/AI fails (429, offline, any error).
@@ -68,14 +85,13 @@ function buildLocalFallback(state) {
   const b = safeNum(state?.b, 1);
   const op = state?.op || "+";
 
-  // For your demo: addition only.
-  // If op is not "+", we still do a safe addition to avoid breaking the demo.
-  const sum = op === "+" ? a + b : a + b;
+  const answer = computeAnswer(a, b, op);
 
+  
   // Get the next local story in order
-  const storyText = pickLocalStoryByOrder({ a, b, sum, state });
+  const storyText = pickLocalStoryByOrder({ a, b, answer, op, state });
 
-  return { storyText, answer: sum };
+  return { storyText, answer };
 }
 
 export default function CatStory() {

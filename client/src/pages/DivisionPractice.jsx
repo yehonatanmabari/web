@@ -1,120 +1,21 @@
-// src/pages/PracticeDivision.jsx
 import React, { useEffect, useRef, useState } from "react";
 import useCatCongrats from "./useCatCongrats";
 import useCatUncongrats from "./useCatUncongrats";
+import {
+  DIV_STATE_KEY,
+  LEVELS,
+  LEVEL_TEXT,
+  makeQuestion,
+  levelFromDivisionF,
+  fetchDivisionF,
+  fetchIncDivision
+} from "./divisionLogic";
+import { savePracticeState, clearPracticeState, getPracticeState } from "./practiceState";
 
-/**
- * ✅ Works on Vercel + local:
- * - Vercel: set VITE_API_BASE in Project Env Vars (e.g. https://your-api.vercel.app)
- * - Local: if not set, falls back to http://localhost:3000
- */
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
-
-const DIV_STATE_KEY = "division_practice_state_v1";
-
-/** ---------- Tiny helpers ---------- */
-async function apiFetch(path, options = {}) {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
-
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-    },
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    const msg = data?.message || data?.error || `HTTP ${res.status}`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-  return data;
-}
-
-function randInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/** ✅ שלך בדיוק */
-const LEVEL_TEXT = {
-  beginners: {
-    title: "מתחילים 😺",
-    body:
-      "מתי החתול מסביר שחילוק זה 'לחלק שווה בשווה'.\n" +
-      "לוקחים מספר גדול (עוגיות 🍪).\n" +
-      "מחלקים לקבוצות שוות.\n" +
-      "סופרים כמה יש בכל קבוצה.\n" +
-      "דוגמה: 6 ÷ 2 → 3 לכל ילד.\n" +
-      "טיפ של מתי: אפשר לצייר עיגולים ולעשות קבוצות 🟣🟣🟣",
-  },
-  advanced: {
-    title: "מתקדמים 🐾",
-    body:
-      "מתי החתול כבר יודע שחילוק קשור ללוח הכפל.\n" +
-      "שואלים: 'איזה מספר כפול המחלק נותן את המחולק?'\n" +
-      "דוגמה: 24 ÷ 6 → מי כפול 6 נותן 24? → 4.\n" +
-      "אם קשה — נסה כפולות עד שמגיעים למחולק.\n" +
-      "טיפ של מתי: לחשוב על כפל עושה חילוק מהיר 🐾",
-  },
-  champs: {
-    title: "אלופים 🐯",
-    body:
-      "רמה של אלופים אמיתיים.\n" +
-      "מתי החתול משתמש בטריקים חכמים ופירוקים.\n" +
-      "דוגמה: 96 ÷ 8 → 80 ÷ 8 = 10 וגם 16 ÷ 8 = 2 → ביחד 12.\n" +
-      "בודקים עם כפל: 12 × 8 = 96 ✅\n" +
-      "טיפ של מתי: בדיקה בכפל שומרת על 0 טעויות 🧠",
-  },
-};
-
-/** ✅ שלך בדיוק */
-const LEVELS = {
-  beginners: { label: "מתחילים", minDivisor: 2, maxDivisor: 5, maxAnswer: 10 },
-  advanced: { label: "מתקדמים", minDivisor: 2, maxDivisor: 10, maxAnswer: 12 },
-  champs: { label: "אלופים", minDivisor: 2, maxDivisor: 12, maxAnswer: 15 },
-};
-
-function makeQuestion(levelKey) {
-  const L = LEVELS[levelKey] ?? LEVELS.beginners;
-
-  const divisor = randInt(L.minDivisor, L.maxDivisor); // המחלק
-  const ans = randInt(1, L.maxAnswer);                // התשובה (כמה בכל קבוצה)
-  const dividend = divisor * ans;                     // המחולק (יוצא תמיד מתחלק)
-
-  return { dividend, divisor, ans };
-}
-
-function levelFromDivisionF(division_f) {
-  const n = Number(division_f ?? 1);
-  if (!Number.isFinite(n) || n <= 1) return "beginners";
-  if (n === 2) return "advanced";
-  return "champs";
-}
-
-async function fetchDivisionF(username) {
-  // ✅ assumption: GET /user/division-f?username=...
-  try {
-    const data = await apiFetch(`/user/division-f?username=${encodeURIComponent(username)}`);
-    if (!data?.ok) return null;
-    const n = Number(data.division_f);
-    return Number.isFinite(n) ? n : null;
-  } catch {
-    return null;
-  }
-}
-
-/** ---------- Component ---------- */
-export default function PracticeDivision() {
+export default function DivisionExampleBetter() {
   const timerRef = useRef(null);
-
   const { triggerCatFx, CatCongrats } = useCatCongrats(900);
   const { triggerBadCatFx, CatUncongrats } = useCatUncongrats(900);
-
   const [level, setLevel] = useState("beginners");
   const [q, setQ] = useState(() => makeQuestion("beginners"));
   const [input, setInput] = useState("");
@@ -122,46 +23,32 @@ export default function PracticeDivision() {
   const [story, setStory] = useState("");
   const [noPointsThisQuestion, setNoPointsThisQuestion] = useState(false);
 
-  function savePracticeState(next = {}) {
-    sessionStorage.setItem(
-      DIV_STATE_KEY,
-      JSON.stringify({ level, q, input, msg, noPointsThisQuestion, story, ...next })
-    );
+  function saveState(next = {}) {
+    savePracticeState(DIV_STATE_KEY, { level, q, input, msg, noPointsThisQuestion, story }, next);
+  }
+  function clearState() {
+    clearPracticeState(DIV_STATE_KEY);
   }
 
-  function clearPracticeState() {
-    sessionStorage.removeItem(DIV_STATE_KEY);
-  }
-
-  /** On mount: restore state */
   useEffect(() => {
-    const saved = sessionStorage.getItem(DIV_STATE_KEY);
-    if (saved) {
-      try {
-        const st = JSON.parse(saved);
-        if (st?.level) setLevel(st.level);
-        if (st?.q) setQ(st.q);
-        if (typeof st?.input === "string") setInput(st.input);
-        if (typeof st?.msg === "string") setMsg(st.msg);
-        if (typeof st?.story === "string") setStory(st.story);
-        if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
-      } catch {
-        // ignore
-      }
+    const st = getPracticeState(DIV_STATE_KEY);
+    if (st) {
+      if (st?.level) setLevel(st.level);
+      if (st?.q) setQ(st.q);
+      if (typeof st?.input === "string") setInput(st.input);
+      if (typeof st?.msg === "string") setMsg(st.msg);
+      if (typeof st?.story === "string") setStory(st.story);
+      if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
     }
   }, []);
 
-  /** Auto-select level from DB ONLY if no saved state */
   useEffect(() => {
     (async () => {
-      if (sessionStorage.getItem(DIV_STATE_KEY)) return;
-
+      if (getPracticeState(DIV_STATE_KEY)) return;
       const username = localStorage.getItem("username");
       if (!username) return;
-
       const f = await fetchDivisionF(username);
       const newLevel = levelFromDivisionF(f);
-
       setLevel(newLevel);
       setQ(makeQuestion(newLevel));
       setInput("");
@@ -176,7 +63,7 @@ export default function PracticeDivision() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    clearPracticeState();
+    clearState();
     setMsg("");
     setInput("");
     setStory("");
@@ -189,66 +76,51 @@ export default function PracticeDivision() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-
     const s =
       `מתי החתול אומר 😺:\n` +
       `בתרגיל הזה יש לנו ${q.dividend} ÷ ${q.divisor}.\n` +
       `תחשוב על קבוצות שוות: אם מחלקים ${q.dividend} עוגיות ל-${q.divisor} ילדים,\n` +
       `כמה יקבל כל ילד? התשובה היא ${q.ans}.\n` +
       `יאללה תנסה לענות לבד!`;
-
     setNoPointsThisQuestion(true);
     setStory(s);
     setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
-    savePracticeState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
+    saveState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
   }
 
   async function incDivisionScoreIfAllowed() {
     if (noPointsThisQuestion) return;
     const username = localStorage.getItem("username");
     if (!username) return;
-
     try {
-      // ✅ expected: POST /score/division  body: { username }
-      await apiFetch("/score/division", {
-        method: "POST",
-        body: JSON.stringify({ username }),
-      });
-    } catch {
-      // ignore
-    }
+      await fetchIncDivision(username);
+    } catch {}
   }
 
   function checkAnswer() {
     const val = Number(input);
-
     if (input.trim() === "" || !Number.isFinite(val)) {
       const m = "הקלד מספר";
       setMsg(m);
-      savePracticeState({ msg: m });
+      saveState({ msg: m });
       return;
     }
-
     if (val === q.ans) {
       const m = noPointsThisQuestion ? "✅ נכון (בלי נקודות כי ביקשת סיפור)" : "✅ נכון";
       setMsg(m);
-      savePracticeState({ msg: m });
-
+      saveState({ msg: m });
       triggerCatFx();
       incDivisionScoreIfAllowed();
-
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
       return;
     }
-
     triggerBadCatFx();
     const m = "❌ לא נכון";
     setMsg(m);
-    savePracticeState({ msg: m });
+    saveState({ msg: m });
   }
 
-  /** Cleanup timer on unmount */
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -256,86 +128,41 @@ export default function PracticeDivision() {
   }, []);
 
   return (
-    <div
-      style={{
-        fontFamily: "Arial",
-        maxWidth: 420,
-        margin: "40px auto",
-        direction: "rtl",
-        textAlign: "right",
-        position: "relative",
-      }}
-    >
+    <div style={{ fontFamily: "Arial", maxWidth: 420, margin: "40px auto", direction: "rtl", textAlign: "right", position: "relative" }}>
       <CatCongrats />
       <CatUncongrats />
-
       <h2>תרגול חילוק</h2>
-
       <div className="mt-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
         <div className="text-xs font-bold text-slate-600">הרמה שלך:</div>
         <div className="text-sm font-extrabold text-slate-900">
           {level === "beginners" ? "מתחילים 😺" : level === "advanced" ? "מתקדמים 🐾" : "אלופים 🐯"}
         </div>
       </div>
-
       <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
-        = {q.divisor} : {q.dividend} 
+        = {q.divisor} : {q.dividend}
       </div>
-
       <input
         value={input}
-        onChange={(e) => {
+        onChange={e => {
           setInput(e.target.value);
-          savePracticeState({ input: e.target.value });
+          saveState({ input: e.target.value });
         }}
         placeholder="תשובה"
         style={{ padding: 8, width: "100%", boxSizing: "border-box" }}
       />
-
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
         <button onClick={checkAnswer}>בדוק</button>
-
-        <button
-          onClick={goStory}
-          style={{
-            background: "#fff",
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            padding: "6px 10px",
-          }}
-          title="מתי החתול יספר סיפור על התרגיל הזה"
-        >
-          ספר סיפור 😺
-        </button>
-
-        <button
-          onClick={() => goNextQuestion(level)}
-          style={{
-            background: "#0f172a",
-            color: "white",
-            border: "1px solid #0f172a",
-            borderRadius: 8,
-            padding: "6px 10px",
-          }}
-          title="עובר לתרגיל הבא ומנקה את הקודם"
-        >
-          תרגיל הבא ➜
-        </button>
+        <button onClick={goStory} style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 8, padding: "6px 10px" }} title="מתי החתול יספר סיפור על התרגיל הזה">ספר סיפור 😺</button>
+        <button onClick={() => goNextQuestion(level)} style={{ background: "#0f172a", color: "white", border: "1px solid #0f172a", borderRadius: 8, padding: "6px 10px" }} title="עובר לתרגיל הבא ומנקה את הקודם">תרגיל הבא ➜</button>
       </div>
-
       {msg ? <div style={{ marginTop: 10, fontWeight: 800, color: "#0f172a" }}>{msg}</div> : null}
-
       <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-extrabold text-slate-900">{LEVEL_TEXT[level]?.title ?? "הסבר לרמה"}</p>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-            {LEVELS[level]?.label}
-          </span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">{LEVELS[level]?.label}</span>
         </div>
-
         <p className="mt-2 text-sm leading-7 text-slate-700 whitespace-pre-line">{LEVEL_TEXT[level]?.body ?? ""}</p>
       </div>
-
       {story ? (
         <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
           <div className="text-sm font-extrabold text-slate-900">הסיפור של מתי 😺</div>
