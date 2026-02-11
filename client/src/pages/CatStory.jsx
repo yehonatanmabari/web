@@ -92,7 +92,7 @@ function buildLocalFallback(state) {
   // Get the next local story in order
   const storyText = pickLocalStoryByOrder({ a, b, answer, op, state });
 
-  return { storyText, answer };
+  return { storyText, answer:answer };
 }
 
 export default function CatStory() {
