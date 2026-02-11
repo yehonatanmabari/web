@@ -76,16 +76,15 @@ export default function DivisionExampleBetter() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    const s =
-      `מתי החתול אומר 😺:\n` +
-      `בתרגיל הזה יש לנו ${q.dividend} ÷ ${q.divisor}.\n` +
-      `תחשוב על קבוצות שוות: אם מחלקים ${q.dividend} עוגיות ל-${q.divisor} ילדים,\n` +
-      `כמה יקבל כל ילד? התשובה היא ${q.ans}.\n` +
-      `יאללה תנסה לענות לבד!`;
+    // const s =
+    //   `מתי החתול אומר 😺:\n` +
+    //   `בתרגיל הזה יש לנו ${q.dividend} ÷ ${q.divisor}.\n` +
+    //   `תחשוב על קבוצות שוות: אם מחלקים ${q.dividend} עוגיות ל-${q.divisor} ילדים,\n` +
+    //   `כמה יקבל כל ילד? התשובה היא ${q.ans}.\n` +
+    //   `יאללה תנסה לענות לבד!`;
     setNoPointsThisQuestion(true);
-    setStory(s);
-    setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
-    saveState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
+    saveState({ noPointsThisQuestion: true });
+    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "/" } });
   }
 
   async function incDivisionScoreIfAllowed() {
