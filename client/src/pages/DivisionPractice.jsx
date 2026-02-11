@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import useCatCongrats from "./useCatCongrats";
 import useCatUncongrats from "./useCatUncongrats";
+import { useNavigate } from "react-router-dom";
 import {
   DIV_STATE_KEY,
   LEVELS,
@@ -13,6 +14,7 @@ import {
 import { savePracticeState, clearPracticeState, getPracticeState } from "./practiceState";
 
 export default function DivisionExampleBetter() {
+  const navigate = useNavigate();
   const timerRef = useRef(null);
   const { triggerCatFx, CatCongrats } = useCatCongrats(900);
   const { triggerBadCatFx, CatUncongrats } = useCatUncongrats(900);
