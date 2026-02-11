@@ -57,6 +57,7 @@ function pickLocalStoryByOrder(payload) {
 }
 
 function computeAnswer(a, b, op) {
+  console.log("a=" + string(a) + "b=" + string(b) + "op=" + string(op));
   switch (op) {
     case "+":
         return a + b;
