@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   PCT_STATE_KEY,
   LEVELS,
@@ -13,6 +14,7 @@ import useCatCongrats from "./useCatCongrats";
 import useCatUncongrats from "./useCatUncongrats";
 
 export default function PracticePercentBetter() {
+  const navigate = useNavigate();
   const timerRef = useRef(null);
   const { triggerCatFx, CatCongrats } = useCatCongrats(900);
   const { triggerBadCatFx, CatUncongrats } = useCatUncongrats(900);
@@ -76,17 +78,9 @@ export default function PracticePercentBetter() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    const s =
-      `מתי החתול אומר 😺:\n` +
-      `בתרגיל הזה אנחנו מחשבים ${q.pct}% מתוך ${q.base}.\n` +
-      `תחשוב: ${q.pct}% זה "כמה מתוך 100".\n` +
-      `ואפשר לפרק לאחוזים קלים כמו 10/25/50 או 1/2/4.\n` +
-      `התוצאה כאן היא ${q.ans}.\n` +
-      `יאללה תנסה לענות לבד!`;
     setNoPointsThisQuestion(true);
-    setStory(s);
-    setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
-    saveState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
+    saveState({ noPointsThisQuestion: true });
+    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "%" } });
   }
 
   async function incPercentScoreIfAllowed() {

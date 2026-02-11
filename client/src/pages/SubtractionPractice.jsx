@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import useCatCongrats from "./useCatCongrats";
 import useCatUncongrats from "./useCatUncongrats";
+import { useNavigate } from "react-router-dom";
 import {
   SUB_STATE_KEY,
   LEVELS,
@@ -13,6 +14,7 @@ import {
 import { savePracticeState, clearPracticeState, getPracticeState } from "./practiceState";
 
 export default function SubtractionExampleBetter() {
+  const navigate = useNavigate();
   const timerRef = useRef(null);
   const { triggerCatFx, CatCongrats } = useCatCongrats(900);
   const { triggerBadCatFx, CatUncongrats } = useCatUncongrats(900);
@@ -76,16 +78,9 @@ export default function SubtractionExampleBetter() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    const s =
-      `מתי החתול אומר 😺:\n` +
-      `בתרגיל הזה יש לנו ${q.a} פחות ${q.b}.\n` +
-      `אפשר לחשוב: אם יש לי ${q.a} עוגיות,\n` +
-      `ואני נותן ${q.b} לחברים — נשאר ${q.ans}.\n` +
-      `יאללה תנסה לענות לבד!`;
     setNoPointsThisQuestion(true);
-    setStory(s);
-    setMsg("📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.");
-    saveState({ noPointsThisQuestion: true, story: s, msg: "📖 קיבלת סיפור..." });
+    saveState({ noPointsThisQuestion: true });
+    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "%" } });
   }
 
   async function incSubtractionScoreIfAllowed() {
