@@ -80,7 +80,7 @@ export default function SubtractionExampleBetter() {
     }
     setNoPointsThisQuestion(true);
     saveState({ noPointsThisQuestion: true });
-    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "%" } });
+    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "-" } });
   }
 
   async function incSubtractionScoreIfAllowed() {
