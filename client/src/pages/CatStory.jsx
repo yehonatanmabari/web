@@ -57,7 +57,6 @@ function pickLocalStoryByOrder(payload) {
 }
 
 function computeAnswer(a, b, op) {
-  console.log({ a, b, op });
   switch (op) {
     case "+":
         return a + b;
@@ -82,6 +81,7 @@ function computeAnswer(a, b, op) {
  * If something else arrives, we still produce a safe addition fallback.
  */
 function buildLocalFallback(state) {
+  console.log({ a, b, op });
   const a = safeNum(state?.a, 1);
   const b = safeNum(state?.b, 1);
   const op = state?.op || "+";
