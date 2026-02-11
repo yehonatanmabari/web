@@ -42,8 +42,18 @@ export default function SubtractionExampleBetter() {
       if (typeof st?.story === "string") setStory(st.story);
       if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
     }
-  }, []);
+    const s = sessionStorage.getItem(CAT_STORY_KEY);
+        if (s) {
+          setStory(s);
+          sessionStorage.removeItem(CAT_STORY_KEY);
+          const m = "📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.";
+          setMsg(m);
+          setNoPointsThisQuestion(true);
+          saveState({ story: s, msg: m, noPointsThisQuestion: true });
+        }
+      }, []);
 
+  
   useEffect(() => {
     (async () => {
       if (getPracticeState(SUB_STATE_KEY)) return;
