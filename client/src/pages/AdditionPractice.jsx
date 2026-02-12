@@ -27,7 +27,8 @@ export default function AdditionExampleBetter() {
   const [noPointsThisQuestion, setNoPointsThisQuestion] = useState(false);
 
   function saveState(next = {}) {
-    savePracticeState(ADD_STATE_KEY, { level, q, input, msg, noPointsThisQuestion, story }, next);
+    savePracticeState(ADD_STATE_KEY, { level, q, input, msg }, next);
+    // savePracticeState(ADD_STATE_KEY, { level, q, input, msg, noPointsThisQuestion, story }, next);
   }
   function clearState() {
     clearPracticeState(ADD_STATE_KEY);
@@ -40,8 +41,8 @@ export default function AdditionExampleBetter() {
       if (st?.q) setQ(st.q);
       if (typeof st?.input === "string") setInput(st.input);
       if (typeof st?.msg === "string") setMsg(st.msg);
-      if (typeof st?.story === "string") setStory(st.story);
-      if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
+      // if (typeof st?.story === "string") setStory(st.story);
+      // if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
     }
     const s = sessionStorage.getItem(CAT_STORY_KEY);
     if (s) {
@@ -50,7 +51,8 @@ export default function AdditionExampleBetter() {
       const m = "📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.";
       setMsg(m);
       setNoPointsThisQuestion(true);
-      saveState({ story: s, msg: m, noPointsThisQuestion: true });
+      saveState({ msg: m});
+      // saveState({ story: s, msg: m, noPointsThisQuestion: true });
     }
   }, []);
 
