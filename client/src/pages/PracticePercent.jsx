@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   PCT_STATE_KEY,
+  CAT_STORY_KEY,
   LEVELS,
   LEVEL_TEXT,
   makeQuestion,
@@ -41,6 +42,15 @@ export default function PracticePercentBetter() {
       if (typeof st?.msg === "string") setMsg(st.msg);
       if (typeof st?.story === "string") setStory(st.story);
       if (typeof st?.noPointsThisQuestion === "boolean") setNoPointsThisQuestion(st.noPointsThisQuestion);
+    }
+    const s = sessionStorage.getItem(CAT_STORY_KEY);
+    if (s) {
+      setStory(s);
+      sessionStorage.removeItem(CAT_STORY_KEY);
+      const m = "📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.";
+      setMsg(m);
+      setNoPointsThisQuestion(true);
+      saveState({ story: s, msg: m, noPointsThisQuestion: true });
     }
   }, []);
 
@@ -89,7 +99,7 @@ export default function PracticePercentBetter() {
     if (!username) return;
     try {
       await fetchIncPercent(username);
-    } catch {}
+    } catch { }
   }
 
   function checkAnswer() {

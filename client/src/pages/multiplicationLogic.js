@@ -2,6 +2,7 @@
 import { randInt, apiFetch } from "./practiceHelpers";
 
 export const MUL_STATE_KEY = "multiplication_practice_state_v1";
+export const CAT_STORY_KEY = "cat_story_text";
 
 export const LEVELS = {
   beginners: { label: "מתחילים", min: 0, max: 5 },

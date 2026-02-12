@@ -2,6 +2,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 export const PCT_STATE_KEY = "percent_practice_state_v1";
+export const CAT_STORY_KEY = "cat_story_text";
 
 export const LEVELS = {
   easy: { label: "מתחילים (קל מאוד)", minBase: 10, maxBase: 200 },
