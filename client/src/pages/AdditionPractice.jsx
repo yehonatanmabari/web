@@ -118,12 +118,14 @@ function goStory() {
   navigate("/cat-story", { state: { a: q.a, b: q.b, op: "+" } });
 }
 
-async function incAdditionScoreIfAllowed() {
-  if (noPointsThisQuestion) return;
+async function incAdditionScoreIfAllowed(isCorrect) {
   const username = localStorage.getItem("username");
   if (!username) return;
   try {
-    await fetchIncAddition(username);
+    if (noPointsThisQuestion){
+      await fetchIncAddition(username, null);
+    } 
+    await fetchIncAddition(username, isCorrect);
   } catch { }
 }
 
@@ -140,11 +142,12 @@ function checkAnswer() {
     setMsg(m);
     saveState({ msg: m });
     triggerCatFx();
-    incAdditionScoreIfAllowed();
+    incAdditionScoreIfAllowed(true);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
     return;
   }
+  incAdditionScoreIfAllowed(false);
   triggerBadCatFx();
   const m = "❌ לא נכון";
   setMsg(m);

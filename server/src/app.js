@@ -8,6 +8,9 @@ const cors = require("cors");
 
 const CMON = process.env.MONGO_URI || "NoMongo";
 
+const LEVELS = ["easy", "medium", "hard"];
+
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -67,6 +70,35 @@ function getTodayValue(user, field, dayIndex) {
   return Number.isFinite(v) ? v : 0;
 }
 
+function evaluateLevel(current_level, recent_answers) {
+  if (!Array.isArray(recent_answers) || recent_answers.length < 10) {
+    return { level: current_level, reset: false };
+  }
+  
+  const correctCount = recent_answers.filter(x => x).length;
+  const wrongCount = recent_answers.length - correctCount;
+  const idx = LEVELS.indexOf(current_level);
+
+  // Promotion if got 10 questions and at least 9 correct
+  if (correctCount >= 9 && idx < LEVELS.length - 1) {
+    return { level: LEVELS[idx + 1], reset: true };
+  }
+
+  // Demotion - if got 10 questions and at least 6 wrong
+  if (wrongCount >= 6 && idx > 0) {
+    return { level: LEVELS[idx - 1], reset: true };
+  }
+
+  // Otherwise, keep the same level
+  return { level: current_level, reset: false };
+}
+
+function pushRecent(list, value) {
+  const updated = [...(list || []), value];
+  if (updated.length > 10) updated.shift();
+  return updated;
+}
+
 /**
  * Generic score increment route factory for WEEK ARRAYS in DB,
  * BUT returns only TODAY's number to the client (not the array).
@@ -82,16 +114,52 @@ function makeIncScoreRoute(field) {
       const username = String(req.body?.username || "").trim();
       if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
 
+      const isCorrect = req.body?.isCorrect || null;
+
       const dayIndex = getIsraelDayIndex();
       const dayPath = `${field}.${dayIndex}`; // e.g. "addition.3"
 
-      const user = await User.findOneAndUpdate(
-        { username },
-        { $inc: { [dayPath]: 1 } },
-        { new: true, projection: { password: 0 } }
+      const user = await User.findOne(
+        { username }
       );
-
       if (!user) return res.status(404).json({ ok: false, error: "NO_USER" });
+
+      const recentKey = `${field}_recent`;
+      const factorKey = `${field}_f`;
+
+      // Just to make sure I'm not breaking anything
+      if (!Array.isArray(user[field])) {
+        user[field] = [0,0,0,0,0,0,0];
+      }
+
+      if (!Array.isArray(user[recentKey])) {
+        user[recentKey] = [];
+      }
+
+      if (typeof user[factorKey] !== "number") {
+        user[factorKey] = 1;
+      }
+
+      if (typeof(isCorrect) === "boolean" && user) {
+        user[recentKey] = pushRecent(user[recentKey], isCorrect);
+        const currentLevel = levelFromFactor(user[factorKey]);
+        const levelRes = evaluateLevel(currentLevel, user[recentKey]);
+        if (levelRes.level !== currentLevel) {
+          user[factorKey] = factorFromLevel(levelRes.level);
+        }
+        if (levelRes.reset) {
+          user[recentKey] = [];
+        }
+        if (isCorrect === true) {
+          await User.findOneAndUpdate(
+            { username },
+            { $inc: { [dayPath]: 1 } },
+            { new: true, projection: { password: 0 } }
+          );
+        }
+      }
+
+      await user.save();
 
       const todayValue = getTodayValue(user, field, dayIndex);
 
@@ -106,6 +174,18 @@ function makeIncScoreRoute(field) {
       return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
     }
   };
+}
+
+function levelFromFactor(f) {
+  if (f <= 1) return "easy";
+  if (f === 2) return "medium";
+  return "hard";
+}
+
+function factorFromLevel(level) {
+  if (level === "easy") return 1;
+  if (level === "medium") return 2;
+  return 3;
 }
 
 /**

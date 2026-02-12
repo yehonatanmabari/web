@@ -30,6 +30,13 @@ const UserSchema = new mongoose.Schema({
   division_f: { type: Number, default: 1 },
   percent_f: { type: Number, default: 1 },
 
+  // ✅ Recent queues (Each queue has 10 slots, so we can measure the student success)
+  addition_recent: { type: [Boolean], default: [] },
+  subtraction_recent: { type: [Boolean], default: [] },
+  multiplication_recent: { type: [Boolean], default: [] },
+  division_recent: { type: [Boolean], default: [] },
+  percent_recent: { type: [Boolean], default: [] },
+
   age: { type: Number, required: true, min: 1, max: 12 },
 });
 

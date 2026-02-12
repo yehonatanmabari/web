@@ -68,11 +68,11 @@ export async function fetchAdditionF(username) {
   }
 }
 
-export async function fetchIncAddition(username) {
+export async function fetchIncAddition(username, isCorrect) {
   try {
       await apiFetch("/score/addition", {
         method: "POST",
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ username, isCorrect }),
         headers: { "Content-Type": "application/json" },
   });
   } catch {}
