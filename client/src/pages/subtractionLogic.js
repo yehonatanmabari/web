@@ -2,6 +2,7 @@
 import { randInt, apiFetch } from "./practiceHelpers";
 
 export const SUB_STATE_KEY = "subtraction_practice_state_v1";
+export const CAT_STORY_KEY = "cat_story_text";
 
 export const LEVELS = {
   easy: { label: "מתחילים (0–10)", min: 0, max: 10 },

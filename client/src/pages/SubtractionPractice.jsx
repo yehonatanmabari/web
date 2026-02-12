@@ -4,6 +4,7 @@ import useCatUncongrats from "./useCatUncongrats";
 import { useNavigate } from "react-router-dom";
 import {
   SUB_STATE_KEY,
+  CAT_STORY_KEY,
   LEVELS,
   LEVEL_TEXT,
   makeQuestion,
