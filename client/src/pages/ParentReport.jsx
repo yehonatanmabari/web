@@ -52,8 +52,13 @@ function pickBestDay(dataset) {
  */
 function buildWeekDataset(user) {
   const safeArr = (a) => {
-    if (!Array.isArray(a) || a.length !== 7) return Array(7).fill(0);
-    return a.map((x) => (Number.isFinite(Number(x)) ? Number(x) : 0));
+    const out = Array(7).fill(0);
+    if (!Array.isArray(a)) return out;
+    for (let i = 0; i < Math.min(a.length, 7); i++) {
+      const n = Number(a[i]);
+      out[i] = Number.isFinite(n) ? n : 0;
+  }
+  return out
   };
 
   const addition = safeArr(user?.addition);
