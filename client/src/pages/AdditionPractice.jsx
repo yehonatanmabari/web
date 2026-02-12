@@ -62,6 +62,7 @@ export default function AdditionExampleBetter() {
     const f = await fetchAdditionF(username);
     const newLevel = levelFromAdditionF(f);
     setLevel(prev => {
+      console.log("current level:", prev, "f:", f, "newLevel:", newLevel);
       if (prev === newLevel) return prev;
 
       // level changed → generate new question
