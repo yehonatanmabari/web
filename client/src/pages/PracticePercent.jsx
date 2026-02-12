@@ -146,7 +146,9 @@ export default function PracticePercentBetter() {
     >
       <CatCongrats />
       <CatUncongrats />
-      <h2>תרגול אחוזים</h2>
+      <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 transition-colors">
+        תרגול אחוזים
+      </h2>
       <div className="mt-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
         <div className="text-xs font-bold text-slate-600">הרמה שלך:</div>
         <div className="text-sm font-extrabold text-slate-900">
@@ -166,11 +168,15 @@ export default function PracticePercentBetter() {
         style={{ padding: 8, width: "100%", boxSizing: "border-box" }}
       />
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-        <button onClick={checkAnswer}>בדוק</button>
+        <button onClick={checkAnswer} class="rounded-2xl bg-slate-900 px-4 py-2 text-white hover:opacity-90">בדוק</button>
         <button onClick={goStory} style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 8, padding: "6px 10px" }} title="מתי החתול יספר סיפור על התרגיל הזה">ספר סיפור 😺</button>
         <button onClick={() => goNextQuestion(level)} style={{ background: "#0f172a", color: "white", border: "1px solid #0f172a", borderRadius: 8, padding: "6px 10px" }} title="עובר לתרגיל הבא ומנקה את הקודם">תרגיל הבא ➜</button>
       </div>
-      {msg ? <div style={{ marginTop: 10, fontWeight: 800, color: "#0f172a" }}>{msg}</div> : null}
+      {msg ? (
+        <div className="mt-3 font-extrabold text-slate-800 dark:text-slate-200 transition-colors">
+          {msg}
+        </div>
+      ) : null}
       <div className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-extrabold text-slate-900">{LEVEL_TEXT[level]?.title ?? "הסבר לרמה"}</p>
