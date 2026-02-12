@@ -128,8 +128,11 @@ function makeIncScoreRoute(field) {
       const factorKey = `${field}_f`;
 
       // Just to make sure I'm not breaking anything
-      if (!Array.isArray(user[field])) {
-        user[field] = [0,0,0,0,0,0,0];
+      const fields = ["addition", "subtraction", "multiplication", "division", "percent"];
+      for (const f of fields) {
+        if (!Array.isArray(user[f]) || user[f].length !== 7) {
+          user[f] = [0,0,0,0,0,0,0];
+        }
       }
 
       if (!Array.isArray(user[recentKey])) {
