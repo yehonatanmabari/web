@@ -87,7 +87,8 @@ export default function Register() {
 
   return (
     <div style={{ maxWidth: 420, margin: "40px auto", fontFamily: "Arial" }}>
-      <h2>הרשמה</h2>
+      <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 transition-colors">
+        הרשמה</h2>
 
       <form onSubmit={onSubmit}>
         <input
@@ -115,7 +116,7 @@ export default function Register() {
           style={{ padding: "10px", width: "100%", marginBottom: 10 }}
         />
 
-        <button type="submit" disabled={loading} style={{ padding: "10px 16px" }}>
+        <button type="submit" disabled={loading} style={{ padding: "10px 16px" }} class="rounded-2xl bg-slate-900 px-4 py-2 text-white hover:opacity-90">
           {loading ? "נרשם..." : "הירשם"}
         </button>
       </form>
