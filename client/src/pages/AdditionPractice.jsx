@@ -124,9 +124,23 @@ async function incAdditionScoreIfAllowed(isCorrect) {
   try {
     if (noPointsThisQuestion){
       await fetchIncAddition(username, null);
-    } 
-    await fetchIncAddition(username, isCorrect);
-  } catch { }
+    } else {
+      await fetchIncAddition(username, isCorrect);
+    }
+
+    // refetch factor to see if level changed
+    const f = await fetchAdditionF(username);
+    const newLevel = levelFromAdditionF(f);
+    if (newLevel !== level) {
+      setLevel(newLevel);
+      setQ(makeQuestion(newLevel));
+      setInput("");
+      setMsg("");
+      setStory("");
+      setNoPointsThisQuestion(false);
+    }
+    
+  } catch  {}
 }
 
 function checkAnswer() {
