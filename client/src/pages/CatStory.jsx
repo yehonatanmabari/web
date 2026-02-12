@@ -124,6 +124,7 @@ export default function CatStory() {
          * 1) TRY RAG FIRST:
          * generateCatStory will call Gemini/Vertex and use CAT_STORY_KB as the knowledge base.
          */
+        console.log("Generating story with RAG. Payload is:", state);
         const storyText = await generateCatStory({
           apiKey: API_KEY,
           state,
