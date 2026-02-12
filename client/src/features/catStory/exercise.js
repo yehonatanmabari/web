@@ -27,8 +27,8 @@ export function buildQuestionAndAnswer(state) {
 
   // Percent mode: p% of base
   if (O === "%") {
-    const p = Number(state?.p);
-    const base = Number(state?.base);
+    const p = Number(state?.a);
+    const base = Number(state?.b);
     if (!Number.isFinite(p) || !Number.isFinite(base)) return null;
 
     const expected = (base * p) / 100;
