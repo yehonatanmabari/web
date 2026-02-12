@@ -145,7 +145,7 @@ export default function AdditionExampleBetter() {
           {level === "easy" ? "מתחילים 😺" : level === "medium" ? "מתקדמים 🐾" : "אלופים 🐯"}
         </div>
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, margin: "16px 0" }}>
+      <div className="my-4 text-3xl font-extrabold text-slate-900 dark:text-slate-100 transition-colors">
         = {q.b} + {q.a}
       </div>
       <input
