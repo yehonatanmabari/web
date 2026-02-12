@@ -61,13 +61,17 @@ export default function AdditionExampleBetter() {
 
     const f = await fetchAdditionF(username);
     const newLevel = levelFromAdditionF(f);
-    setLevel(prev => (prev !== newLevel ? newLevel : prev));
-    if (!getPracticeState(ADD_STATE_KEY)) {
+    setLevel(prev => {
+      if (prev === newLevel) return prev;
+
+      // level changed → generate new question
       setQ(makeQuestion(newLevel));
       setInput("");
       setMsg("");
       setStory("");
       setNoPointsThisQuestion(false);
+
+      return newLevel;
     }
   })(); 
 }, []);
