@@ -104,9 +104,9 @@ function goNextQuestion(nextLevel = level) {
   setMsg("");
   setInput("");
   setStory("");
-  setNoPointsThisQuestion(false);
-  saveState({ msg: "", story: "", noPointsThisQuestion: false }); 
+  setNoPointsThisQuestion(false); 
   setQ(makeQuestion(nextLevel));
+  saveState({ msg: "", story: "", noPointsThisQuestion: false });
 }
 
 function goStory() {
