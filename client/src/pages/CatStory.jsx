@@ -65,7 +65,7 @@ function computeAnswer(a, b, op) {
     case "-":
         return b - a;
     case "/":
-        return b !== 0 ? a / b : null;
+        return a !== 0 ? b / a : null;
     case "%":
         return (b / 100) * a;
     default:
