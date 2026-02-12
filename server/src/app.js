@@ -151,11 +151,7 @@ function makeIncScoreRoute(field) {
           user[recentKey] = [];
         }
         if (isCorrect === true) {
-          await User.findOneAndUpdate(
-            { username },
-            { $inc: { [dayPath]: 1 } },
-            { new: true, projection: { password: 0 } }
-          );
+          user[field][dayIndex] = (user[field][dayIndex] || 0) + 1;
         }
       }
 
