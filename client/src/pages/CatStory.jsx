@@ -63,11 +63,11 @@ function computeAnswer(a, b, op) {
     case "*":
         return a * b;
     case "-":
-        return a - b;
+        return b - a;
     case "/":
         return b !== 0 ? a / b : null;
     case "%":
-        return b !== 0 ? a % b : null;
+        return (a / 100) * b;
     default:
       return a + b; // safe fallback so demo never dies
   }

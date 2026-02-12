@@ -90,7 +90,7 @@ export default function DivisionExampleBetter() {
     }
     setNoPointsThisQuestion(true);
     saveState({ noPointsThisQuestion: true });
-    navigate("/cat-story", { state: { a: q.a, b: q.b, op: "/" } });
+    navigate("/cat-story", { state: { a: q.divisor, b: q.dividend, op: "/" } });
   }
 
   async function incDivisionScoreIfAllowed() {
