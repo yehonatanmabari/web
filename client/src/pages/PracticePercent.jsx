@@ -91,7 +91,7 @@ export default function PracticePercentBetter() {
     setNoPointsThisQuestion(true);
     saveState({ noPointsThisQuestion: true });
     console.log("q is ", q);
-    navigate("/cat-story", { state: { a: q.pct, b: q.base, op: "%" } });
+    navigate("/cat-story", { state: { a: q.base, b: q.pct, op: "%" } });
   }
 
   async function incPercentScoreIfAllowed() {

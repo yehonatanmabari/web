@@ -59,17 +59,17 @@ function pickLocalStoryByOrder(payload) {
 function computeAnswer(a, b, op) {
   switch (op) {
     case "+":
-        return a + b;
+        return b + a;
     case "*":
-        return a * b;
+        return b * a;
     case "-":
         return b - a;
     case "/":
         return b !== 0 ? a / b : null;
     case "%":
-        return (a / 100) * b;
+        return (b / 100) * a;
     default:
-      return a + b; // safe fallback so demo never dies
+      return b + a; // safe fallback so demo never dies
   }
 }
 
