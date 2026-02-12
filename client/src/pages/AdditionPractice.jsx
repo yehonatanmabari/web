@@ -156,7 +156,7 @@ export default function AdditionExampleBetter() {
         style={{ padding: 8, width: "100%", boxSizing: "border-box" }}
       />
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-        <button onClick={checkAnswer}>בדוק</button>
+        <button onClick={checkAnswer} class="rounded-2xl bg-slate-900 px-4 py-2 text-white hover:opacity-90">בדוק</button>
         <button onClick={goStory} style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 8, padding: "6px 10px" }} title="מתי החתול יספר סיפור על התרגיל הזה">ספר סיפור 😺</button>
         <button onClick={() => goNextQuestion(level)} style={{ background: "#0f172a", color: "white", border: "1px solid #0f172a", borderRadius: 8, padding: "6px 10px" }} title="עובר לתרגיל הבא ומנקה את הקודם">תרגיל הבא ➜</button>
       </div>
