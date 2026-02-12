@@ -36,18 +36,22 @@ function is429(err) {
  * the user generates a story, it will use the next one.
  */
 function pickLocalStoryByOrder(payload) {
-  const key = "cat_story_index_v1";
+  const { op = "+" } = payload;
+  const stories = CAT_LOCAL_STORIES[op] || CAT_LOCAL_STORIES["+"];
+
+  // Keep a DIFFERENT index per operator so they don't mix
+  const key = `cat_story_index_v1_${op}`;
 
   // Read previous index from sessionStorage (if any)
   const raw = sessionStorage.getItem(key);
   const idx = Number.isFinite(Number(raw)) ? Number(raw) : 0;
 
   // Choose the story function (or string) by index
-  const i = idx % CAT_LOCAL_STORIES.length;
-  const entry = CAT_LOCAL_STORIES[i];
+  const i = idx % stories.length;
+  const entry = stories[i];
 
   // Advance index for next time
-  sessionStorage.setItem(key, String((idx + 1) % CAT_LOCAL_STORIES.length));
+  sessionStorage.setItem(key, String((idx + 1) % stories.length));
 
   // Support two formats:
   // 1) entry is a function: (payload) => "story text"
@@ -63,7 +67,7 @@ function computeAnswer(a, b, op) {
     case "*":
         return b * a;
     case "-":
-        return b - a;
+        return a - b;
     case "/":
         return a !== 0 ? b / a : null;
     case "%":
