@@ -99,7 +99,7 @@ export default function AdditionExampleBetter() {
     if (!username) return;
     try {
       await fetchIncAddition(username);
-    } catch {}
+    } catch { }
   }
 
   function checkAnswer() {
@@ -136,7 +136,9 @@ export default function AdditionExampleBetter() {
     <div style={{ fontFamily: "Arial", maxWidth: 420, margin: "40px auto", direction: "rtl", textAlign: "right", position: "relative" }}>
       <CatCongrats />
       <CatUncongrats />
-      <h2>תרגול חיבור</h2>
+      <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 transition-colors">
+        תרגול חיבור
+      </h2>
       <div className="mt-2 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
         <div className="text-xs font-bold text-slate-600">הרמה שלך:</div>
         <div className="text-sm font-extrabold text-slate-900">
