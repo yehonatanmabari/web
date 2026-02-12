@@ -54,44 +54,44 @@ export default function AdditionExampleBetter() {
     }
   }, []);
 
-  useEffect(() => {
-  (async () => {
-    const username = localStorage.getItem("username");
-    if (!username) return;
-
-    const f = await fetchAdditionF(username);
-    const newLevel = levelFromAdditionF(f);
-    setLevel(prev => {
-      console.log("current level:", prev, "f:", f, "newLevel:", newLevel);
-      if (prev === newLevel) return prev;
-
-      // level changed → generate new question
-      setQ(makeQuestion(newLevel));
-      setInput("");
-      setMsg("");
-      setStory("");
-      setNoPointsThisQuestion(false);
-
-      return newLevel;
-    });
-  })(); 
-}, []);
-
-// useEffect(() => {
+//   useEffect(() => {
 //   (async () => {
-//     if (getPracticeState(ADD_STATE_KEY)) return;
 //     const username = localStorage.getItem("username");
 //     if (!username) return;
+
 //     const f = await fetchAdditionF(username);
 //     const newLevel = levelFromAdditionF(f);
-//     setLevel(newLevel);
-//     setQ(makeQuestion(newLevel));
-//     setInput("");
-//     setMsg("");
-//     setStory("");
-//     setNoPointsThisQuestion(false);
-//   })();
+//     setLevel(prev => {
+//       console.log("current level:", prev, "f:", f, "newLevel:", newLevel);
+//       if (prev === newLevel) return prev;
+
+//       // level changed → generate new question
+//       setQ(makeQuestion(newLevel));
+//       setInput("");
+//       setMsg("");
+//       setStory("");
+//       setNoPointsThisQuestion(false);
+
+//       return newLevel;
+//     });
+//   })(); 
 // }, []);
+
+useEffect(() => {
+  (async () => {
+    if (getPracticeState(ADD_STATE_KEY)) return;
+    const username = localStorage.getItem("username");
+    if (!username) return;
+    const f = await fetchAdditionF(username);
+    const newLevel = levelFromAdditionF(f);
+    setLevel(newLevel);
+    setQ(makeQuestion(newLevel));
+    setInput("");
+    setMsg("");
+    setStory("");
+    setNoPointsThisQuestion(false);
+  })();
+}, []);
 
 function goNextQuestion(nextLevel = level) {
   if (timerRef.current) {
