@@ -27,7 +27,7 @@ export default function MultiplicationExampleBetter() {
   const [noPointsThisQuestion, setNoPointsThisQuestion] = useState(false);
 
   function saveState(next = {}) {
-    savePracticeState(ADD_STATE_KEY, { level, q, input, msg }, next);
+    savePracticeState(MUL_STATE_KEY, { level, q, input, msg }, next);
     // savePracticeState(MUL_STATE_KEY, { level, q, input, msg, noPointsThisQuestion, story }, next);
   }
   function clearState() {
