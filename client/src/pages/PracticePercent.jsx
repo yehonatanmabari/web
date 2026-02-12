@@ -90,6 +90,7 @@ export default function PracticePercentBetter() {
     }
     setNoPointsThisQuestion(true);
     saveState({ noPointsThisQuestion: true });
+    console.log("q is ", q);
     navigate("/cat-story", { state: { a: q.a, b: q.b, op: "%" } });
   }
 
