@@ -51,7 +51,7 @@ export default function AdditionExampleBetter() {
       const m = "📖 קיבלת סיפור. עכשיו אם תענה נכון — לא תקבל נקודות על השאלה הזו.";
       setMsg(m);
       setNoPointsThisQuestion(true);
-      saveState({ msg: m});
+      // saveState({ msg: m});
       // saveState({ story: s, msg: m, noPointsThisQuestion: true });
     }
   }, []);
