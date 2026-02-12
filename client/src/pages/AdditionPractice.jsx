@@ -54,26 +54,22 @@ export default function AdditionExampleBetter() {
     }
   }, []);
 
-  // Trying to fix a bug where the level is not changing
   useEffect(() => {
-    (async () => {
-      // if (getPracticeState(ADD_STATE_KEY)) return;
-      const username = localStorage.getItem("username");
-      if (!username) return;
+  (async () => {
+    const username = localStorage.getItem("username");
+    if (!username) return;
 
-      const f = await fetchAdditionF(username);
-      const newLevel = levelFromAdditionF(f);
-      // setLevel(newLevel);
-      setLevel(prev => (prev !== newLevel ? newLevel : prev));
-      if (!getPracticeState(ADD_STATE_KEY)) {
-        setQ(makeQuestion(newLevel));
-        setInput("");
-        setMsg("");
-        setStory("");
-        setNoPointsThisQuestion(false);
-      }
+    const f = await fetchAdditionF(username);
+    const newLevel = levelFromAdditionF(f);
+    setLevel(prev => (prev !== newLevel ? newLevel : prev));
+    if (!getPracticeState(ADD_STATE_KEY)) {
+      setQ(makeQuestion(newLevel));
+      setInput("");
+      setMsg("");
+      setStory("");
+      setNoPointsThisQuestion(false);
     }
-    })();
+  })(); 
 }, []);
 
 // useEffect(() => {
