@@ -166,8 +166,14 @@ function makeIncScoreRoute(field) {
         [field]: todayValue,
       });
     } catch (e) {
-      console.log("ERR:", e);
-      return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+      // console.log("ERR:", e);
+      // return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+      console.error("makeIncScoreRoute ERROR:", e);
+      return res.status(500).json({
+        ok: false,
+        error: e.message,
+        stack: e.stack, // optional, but helps during debugging
+      });
     }
   };
 }
