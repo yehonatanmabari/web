@@ -119,7 +119,7 @@ function goStory() {
 }
 
 async function incAdditionScoreIfAllowed(isCorrect) {
-  console.log("I was called to check if I should increment score with isCorrect =", isCorrect, "noPointsThisQuestion =", noPointsThisQuestion);
+  console.log("I was called to check if I should increment score with isCorrect =", isCorrect);
   const username = localStorage.getItem("username");
   if (!username) return;
   try {
@@ -162,6 +162,7 @@ function checkAnswer() {
     timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
     return;
   }
+  console.log("answer is wrong, calling incAdditionScoreIfAllowed with false");
   triggerBadCatFx();
   const m = "❌ לא נכון";
   setMsg(m);
