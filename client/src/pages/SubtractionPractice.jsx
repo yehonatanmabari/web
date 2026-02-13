@@ -95,13 +95,28 @@ export default function SubtractionExampleBetter() {
     navigate("/cat-story", { state: { a: q.a, b: q.b, op: "-" } });
   }
 
-  async function incSubtractionScoreIfAllowed() {
-    if (noPointsThisQuestion) return;
+  async function incSubtractionScoreIfAllowed(isCorrect) {
     const username = localStorage.getItem("username");
     if (!username) return;
     try {
-      await fetchIncSubtraction(username);
-    } catch { }
+      if (noPointsThisQuestion) {
+        await fetchIncSubtraction(username, null);
+      } else {
+        await fetchIncSubtraction(username, isCorrect);
+      }
+      const f = await fetchSubtractionF(username);
+      const newLevel = levelFromSubtractionF(f);
+      if (newLevel !== level) {
+        setLevel(newLevel);
+        setQ(makeQuestion(newLevel));
+        setInput("");
+        setMsg("");
+        setStory("");
+        setNoPointsThisQuestion(false);
+      }
+    } catch (err) {
+      console.error("Failed to update subtraction score:", err);
+    }
   }
 
   function checkAnswer() {
@@ -117,7 +132,7 @@ export default function SubtractionExampleBetter() {
       setMsg(m);
       saveState({ msg: m });
       triggerCatFx();
-      incSubtractionScoreIfAllowed();
+      incSubtractionScoreIfAllowed(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
       return;
@@ -126,6 +141,7 @@ export default function SubtractionExampleBetter() {
     const m = "❌ לא נכון";
     setMsg(m);
     saveState({ msg: m });
+    incSubtractionScoreIfAllowed(false);
   }
 
   useEffect(() => {

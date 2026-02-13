@@ -70,11 +70,11 @@ export async function fetchMultiplicationF(username) {
   }
 }
 
-export async function fetchIncMultiplication(username) {
+export async function fetchIncMultiplication(username, isCorrect) {
   try {
       await apiFetch("/score/multiplication", {
         method: "POST",
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ username, isCorrect }),
         headers: { "Content-Type": "application/json" },
   });
   } catch {}

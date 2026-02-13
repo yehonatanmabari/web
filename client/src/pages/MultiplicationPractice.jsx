@@ -94,13 +94,29 @@ export default function MultiplicationExampleBetter() {
     navigate("/cat-story", { state: { a: q.a, b: q.b, op: "*" } });
   }
 
-  async function incMultiplicationScoreIfAllowed() {
-    if (noPointsThisQuestion) return;
+  async function incMultiplicationScoreIfAllowed(isCorrect) {
     const username = localStorage.getItem("username");
     if (!username) return;
     try {
-      await fetchIncMultiplication(username);
-    } catch { }
+      if (noPointsThisQuestion) {
+      await fetchIncMultiplication(username, null);
+      } else {
+        await fetchIncMultiplication(username, isCorrect);
+      }
+      // refetch factor to see if level changed
+      const f = await fetchMultiplicationF(username);
+      const newLevel = levelFromMultiplicationF(f);
+      if (newLevel !== level) {
+        setLevel(newLevel);
+        setQ(makeQuestion(newLevel));
+        setInput("");
+        setMsg("");
+        setStory("");
+        setNoPointsThisQuestion(false);
+      }
+    } catch (err) {
+      console.error("Failed to update multiplication score:", err);
+    }
   }
 
   function checkAnswer() {
@@ -116,7 +132,7 @@ export default function MultiplicationExampleBetter() {
       setMsg(m);
       saveState({ msg: m });
       triggerCatFx();
-      incMultiplicationScoreIfAllowed();
+      incMultiplicationScoreIfAllowed(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
       return;
@@ -125,6 +141,7 @@ export default function MultiplicationExampleBetter() {
     const m = "❌ לא נכון";
     setMsg(m);
     saveState({ msg: m });
+    incMultiplicationScoreIfAllowed(false);
   }
 
   useEffect(() => {

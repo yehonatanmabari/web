@@ -67,11 +67,11 @@ export async function fetchDivisionF(username) {
   }
 }
 
-export async function fetchIncDivision(username) {
+export async function fetchIncDivision(username, isCorrect) {
   try {
       await apiFetch("/score/division", {
         method: "POST",
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ username, isCorrect }),
         headers: { "Content-Type": "application/json" },
   });
   } catch {}

@@ -95,13 +95,29 @@ export default function PracticePercentBetter() {
     navigate("/cat-story", { state: { a: q.base, b: q.pct, op: "%" } });
   }
 
-  async function incPercentScoreIfAllowed() {
-    if (noPointsThisQuestion) return;
+  async function incPercentScoreIfAllowed(isCorrect) {
     const username = localStorage.getItem("username");
     if (!username) return;
     try {
-      await fetchIncPercent(username);
-    } catch { }
+      if (noPointsThisQuestion) {
+        await fetchIncPercent(username, null);
+      } else {
+        await fetchIncPercent(username, isCorrect);
+      }
+
+      const f = await fetchPercentF(username);
+      const newLevel = levelFromPercentF(f);
+      if (newLevel !== level) {
+        setLevel(newLevel);
+        setQ(makeQuestion(newLevel));
+        setInput("");
+        setMsg("");
+        setStory("");
+        setNoPointsThisQuestion(false);
+      }
+    } catch (err) {
+      console.error("Failed to update percent score:", err);
+    }
   }
 
   function checkAnswer() {
@@ -117,7 +133,7 @@ export default function PracticePercentBetter() {
       setMsg(m);
       saveState({ msg: m });
       triggerCatFx();
-      incPercentScoreIfAllowed();
+      incPercentScoreIfAllowed(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
       return;
@@ -126,6 +142,7 @@ export default function PracticePercentBetter() {
     const m = "❌ לא נכון";
     setMsg(m);
     saveState({ msg: m });
+    incPercentScoreIfAllowed(false);
   }
 
   useEffect(() => {

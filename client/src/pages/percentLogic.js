@@ -114,11 +114,11 @@ export async function fetchPercentF(username) {
   }
 }
 
-export async function fetchIncPercent(username) {
+export async function fetchIncPercent(username, isCorrect) {
   try {
     await apiFetch("/score/percent", {
       method: "POST",
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username, isCorrect }),
       headers: { "Content-Type": "application/json" },
     });
   } catch {}

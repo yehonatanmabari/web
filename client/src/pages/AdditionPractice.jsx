@@ -56,29 +56,6 @@ export default function AdditionExampleBetter() {
     }
   }, []);
 
-//   useEffect(() => {
-//   (async () => {
-//     const username = localStorage.getItem("username");
-//     if (!username) return;
-
-//     const f = await fetchAdditionF(username);
-//     const newLevel = levelFromAdditionF(f);
-//     setLevel(prev => {
-//       console.log("current level:", prev, "f:", f, "newLevel:", newLevel);
-//       if (prev === newLevel) return prev;
-
-//       // level changed → generate new question
-//       setQ(makeQuestion(newLevel));
-//       setInput("");
-//       setMsg("");
-//       setStory("");
-//       setNoPointsThisQuestion(false);
-
-//       return newLevel;
-//     });
-//   })(); 
-// }, []);
-
 useEffect(() => {
   (async () => {
     if (getPracticeState(ADD_STATE_KEY)) return;
@@ -119,14 +96,12 @@ function goStory() {
 }
 
 async function incAdditionScoreIfAllowed(isCorrect) {
-  console.log("I was called to check if I should increment score with isCorrect =", isCorrect, "and noPointsThisQuestion =", noPointsThisQuestion);
   const username = localStorage.getItem("username");
   if (!username) return;
   try {
     if (noPointsThisQuestion){
       await fetchIncAddition(username, null);
     } else {
-      console.log("Calling fetchIncAddition with isCorrect =", isCorrect);
       await fetchIncAddition(username, isCorrect);
     }
 
@@ -163,7 +138,6 @@ function checkAnswer() {
     timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
     return;
   }
-  console.log("answer is wrong, calling incAdditionScoreIfAllowed with false");
   triggerBadCatFx();
   const m = "❌ לא נכון";
   setMsg(m);
