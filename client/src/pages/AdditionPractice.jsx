@@ -139,7 +139,7 @@ async function incAdditionScoreIfAllowed(isCorrect) {
       setStory("");
       setNoPointsThisQuestion(false);
     }
-    
+
   } catch  {}
 }
 
@@ -161,11 +161,11 @@ function checkAnswer() {
     timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
     return;
   }
-  incAdditionScoreIfAllowed(false);
   triggerBadCatFx();
   const m = "❌ לא נכון";
   setMsg(m);
   saveState({ msg: m });
+  incAdditionScoreIfAllowed(false);
 }
 
 useEffect(() => {

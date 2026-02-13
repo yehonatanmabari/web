@@ -94,14 +94,30 @@ export default function DivisionExampleBetter() {
     navigate("/cat-story", { state: { a: q.dividend, b: q.divisor, op: "/" } });
   }
 
-  async function incDivisionScoreIfAllowed() {
-    if (noPointsThisQuestion) return;
+  async function incDivisionScoreIfAllowed(isCorrect) {
     const username = localStorage.getItem("username");
     if (!username) return;
     try {
-      await fetchIncDivision(username);
-    } catch { }
+      if (noPointsThisQuestion) {
+        await fetchIncDivision(username, null);
+      } else {
+        await fetchIncDivision(username, isCorrect);
+    }
+    
+    // refetch factor to see if level changed
+    const f = await fetchDivisionF(username);
+    const newLevel = levelFromDivisionF(f);
+    if (newLevel !== level) {
+      setLevel(newLevel);
+      setQ(makeQuestion(newLevel));
+      setInput("");
+      setMsg("");
+      setStory("");
+      setNoPointsThisQuestion(false);
+    }
   }
+  catch (err) {}
+}
 
   function checkAnswer() {
     const val = Number(input);
@@ -116,7 +132,7 @@ export default function DivisionExampleBetter() {
       setMsg(m);
       saveState({ msg: m });
       triggerCatFx();
-      incDivisionScoreIfAllowed();
+      incDivisionScoreIfAllowed(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => goNextQuestion(level), 1000);
       return;
@@ -125,6 +141,7 @@ export default function DivisionExampleBetter() {
     const m = "❌ לא נכון";
     setMsg(m);
     saveState({ msg: m });
+    incDivisionScoreIfAllowed(false);
   }
 
   useEffect(() => {
