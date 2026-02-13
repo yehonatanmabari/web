@@ -114,7 +114,7 @@ function makeIncScoreRoute(field) {
       const username = String(req.body?.username || "").trim();
       if (!username) return res.status(400).json({ ok: false, error: "NO_USERNAME" });
 
-      const isCorrect = req.body?.isCorrect || null;
+      const isCorrect = req.body?.isCorrect ?? null;
 
       const dayIndex = getIsraelDayIndex();
       const dayPath = `${field}.${dayIndex}`; // e.g. "addition.3"
