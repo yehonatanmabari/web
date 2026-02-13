@@ -119,6 +119,7 @@ function goStory() {
 }
 
 async function incAdditionScoreIfAllowed(isCorrect) {
+  console.log("I was called to check if I should increment score with isCorrect =", isCorrect, "noPointsThisQuestion =", noPointsThisQuestion);
   const username = localStorage.getItem("username");
   if (!username) return;
   try {
